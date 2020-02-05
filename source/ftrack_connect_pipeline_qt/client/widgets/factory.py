@@ -165,19 +165,18 @@ class WidgetFactory(QtWidgets.QWidget):
                     message, plugin_data, plugin_type, plugin_name)
             )
 
-        # if result and not isinstance(result, BaseOptionsWidget):
-        #     raise Exception(
-        #         'Widget {} should inherit from {}'.format(
-        #             result,
-        #             BaseOptionsWidget
-        #         )
-        #     )
+        if result and not isinstance(result, BaseOptionsWidget):
+            raise Exception(
+                'Widget {} should inherit from {}'.format(
+                    result.__class__,
+                    BaseOptionsWidget
+                )
+            )
 
         result.status_updated.connect(self._on_widget_status_updated)
         self.register_widget_plugin(plugin_data, result)
 
         return result
-
 
     def _fetch_plugin_widget(
             self, plugin_data, plugin_type, plugin_name, extra_options=None
@@ -222,7 +221,6 @@ class WidgetFactory(QtWidgets.QWidget):
                 if result:
                     # TODO
                     start_time = time.time()
-                    self.logger.info('result widget : {}'.format(result))
                     exec_result = [result[0]()]
                     end_time = time.time()
                     total_time = end_time - start_time
