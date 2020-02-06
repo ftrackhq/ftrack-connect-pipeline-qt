@@ -69,9 +69,9 @@ class FileCollectorWidget(BaseOptionsWidget):
 class CollectorWidget(plugin.CollectorWidget):
     plugin_name = 'file_collector.widget'
 
-    def run(self, data=None, name=None, description=None, options=None):
+    def run(self, session=None, data=None, name=None, description=None, options=None):
         return FileCollectorWidget(
-            session=self.session, data=data, name=name,
+            session=session, data=data, name=name,
             description=description, options=options
         )
 

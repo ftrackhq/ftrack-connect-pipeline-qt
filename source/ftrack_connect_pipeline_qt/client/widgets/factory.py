@@ -221,7 +221,7 @@ class WidgetFactory(QtWidgets.QWidget):
                 if result:
                     # TODO
                     start_time = time.time()
-                    exec_result = [result[0]()]
+                    exec_result = [result[0](session=self.session)]
                     end_time = time.time()
                     total_time = end_time - start_time
 

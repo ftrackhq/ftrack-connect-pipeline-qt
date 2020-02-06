@@ -12,9 +12,9 @@ class ContextWidget(BasePluginWidget):
     plugin_name = 'default.widget'
     plugin_type = '*'
 
-    def run(self, data=None, name=None, description=None, options=None):
+    def run(self, session=None, data=None, name=None, description=None, options=None):
         return dynamic_widget.DynamicWidget(
-            session=self.session, data=data, name=name,
+            session=session, data=data, name=name,
             description=description, options=options
         )
 
