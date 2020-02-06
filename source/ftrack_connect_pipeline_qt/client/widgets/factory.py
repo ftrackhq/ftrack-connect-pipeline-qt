@@ -225,8 +225,6 @@ class WidgetFactory(QtWidgets.QWidget):
                     end_time = time.time()
                     total_time = end_time - start_time
 
-                    exec_result[0]._session = self.session
-
                     result = [{
                         'plugin_name': plugin_name,
                         'plugin_type': plugin_type,
