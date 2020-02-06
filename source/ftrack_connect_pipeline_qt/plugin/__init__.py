@@ -45,22 +45,6 @@ class BasePluginWidget(plugin.BasePlugin):
         )
         return topic
 
-    def _run(self, event):
-        '''Run the current plugin with the settings form the *event*.
-
-        *event* provides a dictionary with the plugin schema information.
-
-        Returns a dictionary with the status, result, execution time and
-        message of the execution
-
-        .. note::
-
-            This function is used by the host engine and called by the
-            PIPELINE_RUN_PLUGIN_TOPIC
-
-        '''
-        plugin_settings = event['data']['settings']
-        return functools.partial(self.run, **plugin_settings)
 
 from ftrack_connect_pipeline_qt.plugin.collector import *
 from ftrack_connect_pipeline_qt.plugin.context import *
