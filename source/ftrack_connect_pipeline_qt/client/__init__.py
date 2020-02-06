@@ -118,4 +118,5 @@ class QtClient(client.Client, QtWidgets.QWidget):
     def _on_run(self):
         '''Function called when click the run button'''
         serialized_data= self._current_def.to_json_object()
+        self.logger.info('sending data : {}')
         self.host_connection.run(serialized_data)

@@ -3,6 +3,7 @@
 
 import logging
 from collections import OrderedDict
+import time
 
 import uuid
 import ftrack_api
@@ -167,7 +168,7 @@ class WidgetFactory(QtWidgets.QWidget):
         if result and not isinstance(result, BaseOptionsWidget):
             raise Exception(
                 'Widget {} should inherit from {}'.format(
-                    result,
+                    result.__class__,
                     BaseOptionsWidget
                 )
             )
@@ -207,8 +208,6 @@ class WidgetFactory(QtWidgets.QWidget):
                     }
                 }
 
-                print 'FETCHING', data
-
                 event = ftrack_api.event.base.Event(
                     topic=constants.PIPELINE_RUN_PLUGIN_TOPIC,
                     data=data
@@ -220,6 +219,22 @@ class WidgetFactory(QtWidgets.QWidget):
                 )
 
                 if result:
+                    # TODO
+                    start_time = time.time()
+                    exec_result = [result[0]()]
+                    end_time = time.time()
+                    total_time = end_time - start_time
+
+                    exec_result[0]._session = self.session
+
+                    result = [{
+                        'plugin_name': plugin_name,
+                        'plugin_type': plugin_type,
+                        'status': constants.SUCCESS_STATUS,
+                        'result': exec_result[0],
+                        'execution_time': total_time,
+                        'message': str('TESTRUN')
+                    }]
                     break
 
         return result
