@@ -46,6 +46,22 @@ def on_discover_pipeline(event):
         event['data']['options']['env']
     )
 
+    #return event['data']['options']
+    ######################
+    data = {
+        'integration': {
+            "name": 'ftrack-connect-pipeline-qt',
+            'version': '0.0.0'
+        },
+        'env': {
+            'PYTHONPATH.prepend': python_dependencies,
+            'FTRACK_EVENT_PLUGIN_PATH': plugin_hook
+        }
+    }
+    return data
+
+    ######################
+
 
 def register(session):
     '''Subscribe to application launch events on *registry*.'''
