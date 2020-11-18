@@ -14,10 +14,15 @@ class AssetManagerModel(QtCore.QAbstractTableModel):
     def ftrack_asset_list(self):
         return self._ftrack_asset_list
 
+    @property
+    def assets_health(self):
+        return self._assets_health or {}
+
     def __init__(self, parent=None):
         '''Initialise with *root* entity and optional *parent*.'''
         super(AssetManagerModel, self).__init__(parent=parent)
         self._ftrack_asset_list = []
+        self._assets_health = {}
         self.columns = asset_constants.KEYS
 
     def set_asset_list(self, ftrack_asset_list):
@@ -29,6 +34,12 @@ class AssetManagerModel(QtCore.QAbstractTableModel):
         #self.clear()
         self._ftrack_asset_list = ftrack_asset_list
         self.endResetModel()
+
+    def set_assets_health(self, assets_health):
+        '''
+        Paint rows depending on the asset health given in *assets_health*
+        '''
+        self._assets_health = assets_health
 
     def rowCount(self, parent=QtCore.QModelIndex()):
         '''Return number of children *parent* index has.
@@ -88,6 +99,17 @@ class AssetManagerModel(QtCore.QAbstractTableModel):
               index.column() == self.get_version_column_index()
         ):
             return QtGui.QColor(0, 0, 0, 255)
+
+        # style health
+        elif (
+                role == QtCore.Qt.BackgroundRole and
+                index.row() in self.assets_health.keys()
+            ):
+            if self.assets_health[index.row()] == "partial":
+                return QtGui.QBrush(QtGui.QColor(255, 165, 0, 200))
+
+            elif self.assets_health[index.row()] == None:
+                return QtGui.QBrush(QtGui.QColor(255, 0, 0, 200))
 
         # style the rest
         elif role == QtCore.Qt.DisplayRole:

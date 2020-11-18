@@ -132,6 +132,12 @@ class AssetManagerWidget(QtWidgets.QWidget):
         self.ftrack_asset_list = ftrack_asset_list
         self.asset_table_view.set_asset_list(self.ftrack_asset_list)
 
+    def set_assets_health(self, assets_health):
+        '''
+        Sets the helth of each asset in the list from the given *assets_health*
+        '''
+        self.asset_table_view.asset_model.set_assets_health(assets_health)
+
     def on_search(self):
         '''Search in the current model.'''
         value = self.filter_field.text()

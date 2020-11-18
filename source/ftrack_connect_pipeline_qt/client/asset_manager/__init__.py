@@ -183,6 +183,16 @@ class QtAssetManagerClient(AssetManagerClient, QtWidgets.QWidget):
         AssetManagerClient._asset_discovered_callback(self, event)
         self.asset_manager_widget.set_asset_list(self.ftrack_asset_list)
 
+    def _check_assets_health_callback(self, event):
+        '''
+        Callback function of the discover_assets. Sets the updated
+        ftrack_asset_list.
+        '''
+        assets_health = AssetManagerClient._check_assets_health_callback(
+            self, event
+        )
+        self.asset_manager_widget.set_assets_health(assets_health)
+
     def _refresh_ui(self, event):
         '''
         Refreshes the ui running the discover_assets()
