@@ -16,6 +16,7 @@ logger = logging.getLogger('{}.hook'.format(NAME.replace('-','_')))
 def on_application_launch(event):
     '''Handle application launch and add environment to *event*.'''
     logger.debug('launching: {}'.format(NAME))
+    cwd = os.path.dirname(__file__)
 
     plugin_base_dir = os.path.normpath(
         os.path.join(
@@ -45,7 +46,7 @@ def on_application_launch(event):
             'version': '0.0.0',
             'env':{
                 'PYTHONPATH.prepend': python_dependencies,
-                'FTRACK_EVENT_PLUGIN_PATH.prepend': plugin_hook
+                'FTRACK_EVENT_PLUGIN_PATH.prepend': os.pathsep.join([plugin_hook, cwd])
             }
         }
     }
