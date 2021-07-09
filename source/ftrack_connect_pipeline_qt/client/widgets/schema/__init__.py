@@ -4,6 +4,9 @@
 import logging
 from Qt import QtGui, QtCore, QtWidgets
 
+logger = logging.getLogger(
+    __name__
+)
 
 class BaseJsonWidget(QtWidgets.QWidget):
     '''
@@ -49,9 +52,7 @@ class BaseJsonWidget(QtWidgets.QWidget):
         '''
         super(BaseJsonWidget, self).__init__(parent=parent)
         # setup default vars
-        self.logger = logging.getLogger(
-            __name__ + '.' + self.__class__.__name__
-        )
+
 
         self.widget_factory = widget_factory
         self.schema_fragment = schema_fragment

@@ -14,8 +14,11 @@ from ftrack_connect_pipeline_qt.client.widgets import schema as schema_widget
 from ftrack_connect_pipeline_qt.client.widgets.schema.overrides import step,\
     hidden, plugin_container
 
+from ftrack_connect_pipeline_qt.profile import profileit
+
 from Qt import QtCore, QtWidgets
 
+logger = logging.getLogger(__name__ )
 
 class WidgetFactory(QtWidgets.QWidget):
     '''Main class to represent widgets from json schemas'''
@@ -27,6 +30,41 @@ class WidgetFactory(QtWidgets.QWidget):
 
     host_types = None
     ui_types = None
+
+    schema_type_mapping = {
+        'object': schema_widget.JsonObject,
+        'string': schema_widget.JsonString,
+        'integer': schema_widget.JsonInteger,
+        'array': schema_widget.JsonArray,
+        'number': schema_widget.JsonNumber,
+        'boolean': schema_widget.JsonBoolean
+    }
+    schema_name_mapping = {
+        'components': step.StepArray,
+        'contexts': step.StepArray,
+        'finalizers': step.StepArray,
+        '_config': hidden.HiddenObject,
+        'ui_type': hidden.HiddenString,
+        'category': hidden.HiddenString,
+        'type': hidden.HiddenString,
+        'name': hidden.HiddenString,
+        'enabled': hidden.HiddenBoolean,
+        'package': hidden.HiddenString,
+        'engine_type': hidden.HiddenString,
+        'host_type': hidden.HiddenString,
+        'optional': hidden.HiddenBoolean,
+        'discoverable': hidden.HiddenArray,
+    }
+
+    schema_title_mapping = {
+        'Publisher': hidden.HiddenObject,
+        'Loader': hidden.HiddenObject,
+        'AssetManager': hidden.HiddenObject,
+        'Step': hidden.HiddenObject,
+        'Plugin': plugin_container.PluginContainerObject,
+        'Component': plugin_container.PluginContainerObject
+    }
+
 
     @property
     def widgets(self):
@@ -50,9 +88,7 @@ class WidgetFactory(QtWidgets.QWidget):
         '''
         super(WidgetFactory, self).__init__()
 
-        self.logger = logging.getLogger(
-            __name__ + '.' + self.__class__.__name__
-        )
+
         self.session = event_manager.session
         self._event_manager = event_manager
         self.ui_types = ui_types
@@ -64,39 +100,7 @@ class WidgetFactory(QtWidgets.QWidget):
 
         self.components_names = []
 
-        self.schema_type_mapping = {
-            'object': schema_widget.JsonObject,
-            'string': schema_widget.JsonString,
-            'integer': schema_widget.JsonInteger,
-            'array': schema_widget.JsonArray,
-            'number': schema_widget.JsonNumber,
-            'boolean': schema_widget.JsonBoolean
-        }
-        self.schema_name_mapping = {
-            'components': step.StepArray,
-            'contexts': step.StepArray,
-            'finalizers': step.StepArray,
-            '_config': hidden.HiddenObject,
-            'ui_type': hidden.HiddenString,
-            'category': hidden.HiddenString,
-            'type': hidden.HiddenString,
-            'name': hidden.HiddenString,
-            'enabled': hidden.HiddenBoolean,
-            'package': hidden.HiddenString,
-            'engine_type': hidden.HiddenString,
-            'host_type': hidden.HiddenString,
-            'optional': hidden.HiddenBoolean,
-            'discoverable': hidden.HiddenArray,
-        }
 
-        self.schema_title_mapping = {
-            'Publisher': hidden.HiddenObject,
-            'Loader': hidden.HiddenObject,
-            'AssetManager': hidden.HiddenObject,
-            'Step': hidden.HiddenObject,
-            'Plugin': plugin_container.PluginContainerObject,
-            'Component': plugin_container.PluginContainerObject
-        }
 
     def set_context(self, context_id, asset_type_name):
         '''Set :obj:`context_id` and :obj:`asset_type_name` with the given
@@ -117,6 +121,7 @@ class WidgetFactory(QtWidgets.QWidget):
         '''Set :obj:`definition_type` with the given *definition_type*'''
         self.definition_type = definition_type
 
+    @profileit
     def create_widget(
             self, name, schema_fragment, fragment_data=None,
             previous_object_data=None, parent=None):
@@ -209,7 +214,7 @@ class WidgetFactory(QtWidgets.QWidget):
 
         plugin_type = '{}.{}'.format(self.definition_type, stage_name)
 
-        self.logger.debug('Fetching widget : {} for plugin {}'.format(
+        logger.debug('Fetching widget : {} for plugin {}'.format(
             widget_name, plugin_name
         ))
 
@@ -223,7 +228,7 @@ class WidgetFactory(QtWidgets.QWidget):
                 widget_name = 'default.validator.widget'
             else:
                 widget_name = 'default.widget'
-            self.logger.debug(
+            logger.debug(
                 'Widget not found, falling back on: {}'.format(widget_name)
             )
 
@@ -334,7 +339,7 @@ class WidgetFactory(QtWidgets.QWidget):
 
         widget = self.widgets.get(widget_ref)
         if not widget:
-            self.logger.debug(
+            logger.debug(
                 'Widget ref :{} not found for host_id {} ! '.format(
                     widget_ref, host_id
                 )
@@ -342,7 +347,7 @@ class WidgetFactory(QtWidgets.QWidget):
             return
 
         if status:
-            self.logger.debug(
+            logger.debug(
                 'updating widget: {} Status: {}, Message: {}, User Message: {}'.format(
                     widget, status, message, user_message
                 )
@@ -352,7 +357,7 @@ class WidgetFactory(QtWidgets.QWidget):
             else:
                 widget.set_status(status, message)
         if result:
-            self.logger.debug(
+            logger.debug(
                 'updating widget: {} with run result {}'.format(
                     widget, result
                 )
