@@ -121,7 +121,7 @@ class WidgetFactory(QtWidgets.QWidget):
         '''Set :obj:`definition_type` with the given *definition_type*'''
         self.definition_type = definition_type
 
-    @profileit
+    # @profileit
     def create_widget(
             self, name, schema_fragment, fragment_data=None,
             previous_object_data=None, parent=None):
