@@ -3,10 +3,9 @@
 
 from ftrack_connect_pipeline_qt.client.widgets.schema import (JsonObject, JsonString, JsonBoolean, JsonArray)
 from Qt import QtCore, QtWidgets
-from ftrack_connect_pipeline_qt.client.widgets import Singleton
 
 
-class HiddenBoolean(JsonBoolean, Singleton):
+class HiddenBoolean(JsonBoolean):
     '''
     Override widget representation of a boolean field
     '''
@@ -38,7 +37,7 @@ def merge(source, destination):
 
     return destination
 
-class HiddenObject(JsonObject, Singleton):
+class HiddenObject(JsonObject):
     '''
     Override widget representation of an object
     '''
@@ -65,7 +64,7 @@ class HiddenObject(JsonObject, Singleton):
         return widget
 
 
-class HiddenString(JsonString, Singleton):
+class HiddenString(JsonString):
     '''
     Override widget representation of a string
     '''
@@ -82,7 +81,7 @@ class HiddenString(JsonString, Singleton):
         )
         self.setVisible(False)
 
-class HiddenArray(JsonArray, Singleton):
+class HiddenArray(JsonArray):
     '''
     Override widget representation of an object
     '''
