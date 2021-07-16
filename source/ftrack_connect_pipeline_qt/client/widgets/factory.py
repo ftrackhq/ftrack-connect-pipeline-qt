@@ -13,6 +13,7 @@ from ftrack_connect_pipeline_qt.client.widgets.options import BaseOptionsWidget
 from ftrack_connect_pipeline_qt.client.widgets import schema as schema_widget
 from ftrack_connect_pipeline_qt.client.widgets.schema.overrides import step,\
     hidden, plugin_container
+from ftrack_connect_pipeline_qt import utils
 
 from ftrack_connect_pipeline_qt.profile import profileit
 
@@ -100,6 +101,8 @@ class WidgetFactory(QtWidgets.QWidget):
 
         self.components_names = []
 
+        self.threadpool = QtCore.QThreadPool()
+
 
 
     def set_context(self, context_id, asset_type_name):
@@ -121,27 +124,10 @@ class WidgetFactory(QtWidgets.QWidget):
         '''Set :obj:`definition_type` with the given *definition_type*'''
         self.definition_type = definition_type
 
-    # @profileit
-    def create_widget(
+    def find_widget(
             self, name, schema_fragment, fragment_data=None,
-            previous_object_data=None, parent=None):
-        '''
-        Create the appropriate widget for a given schema element with *name*,
-        *schema_fragment*, *fragment_data*, *previous_object_data*, *parent*
-
-        *name* : widget name
-
-        *schema_fragment* : fragment of the schema to generate the current widget
-
-        *fragment_data* : fragment of the data from the definition to fill
-        the current widget.
-
-        *previous_object_data* : fragment of the data from the previous schema
-        fragment
-
-        *parent* : widget to parent the current widget (optional).
-
-        '''
+            previous_object_data=None, parent=None
+    ):
 
         schema_fragment_order = schema_fragment.get('order', [])
 
@@ -156,6 +142,7 @@ class WidgetFactory(QtWidgets.QWidget):
                     if pair[0] in schema_fragment_order
                     else len(list(schema_fragment['properties'].keys())) - 1)
             )
+
             schema_fragment['properties'] = schema_fragment_properties
 
         widget_fn = self.schema_name_mapping.get(name)
@@ -190,6 +177,11 @@ class WidgetFactory(QtWidgets.QWidget):
                     )
             else:
                 widget_fn = schema_widget.UnsupportedSchema
+
+        return widget_fn
+
+    def create_widget(self, widget_fn, name, schema_fragment, fragment_data=None,
+                    previous_object_data=None, parent=None):
 
         type_widget = widget_fn(
             name, schema_fragment, fragment_data, previous_object_data,

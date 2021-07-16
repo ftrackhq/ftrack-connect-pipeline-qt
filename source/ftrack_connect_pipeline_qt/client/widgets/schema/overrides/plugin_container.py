@@ -4,7 +4,8 @@
 
 from Qt import QtGui, QtCore, QtWidgets
 from ftrack_connect_pipeline_qt.client.widgets.schema import JsonObject
-
+import uuid
+from ftrack_connect_pipeline_qt import utils
 
 class PluginContainerObject(JsonObject):
     '''
@@ -45,8 +46,30 @@ class PluginContainerObject(JsonObject):
                     new_fragment_data = None
                     if self.fragment_data:
                         new_fragment_data = self.fragment_data.get(k)
+
+                    guid = uuid.uuid4().hex
+                    worker = utils.WorkerT(
+                        self.widget_factory.find_widget,
+                        name=k,
+                        schema_fragment=v,
+                        fragment_data=new_fragment_data,
+                        previous_object_data=self.fragment_data
+                    )
+                    worker.start()
+                    while worker.isRunning():
+                        app = QtWidgets.QApplication.instance()
+                        app.processEvents()
+                    if worker.error:
+                        raise worker.error[1].with_traceback(worker.error[2])
+
+                    widget_fn = worker.result
+
                     widget = self.widget_factory.create_widget(
-                        k, v, new_fragment_data, self.fragment_data
+                        widget_fn=widget_fn,
+                        name=k,
+                        schema_fragment=v,
+                        fragment_data=new_fragment_data,
+                        previous_object_data=self.fragment_data
                     )
                     self.layout().addWidget(widget)
                     self.properties_widgets[k] = widget

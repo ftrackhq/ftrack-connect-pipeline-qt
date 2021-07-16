@@ -7,7 +7,9 @@ from ftrack_connect_pipeline_qt.ui.utility.widget import header, definition_sele
 from ftrack_connect_pipeline_qt.client.widgets import factory
 from ftrack_connect_pipeline_qt import constants as qt_constants
 from ftrack_connect_pipeline_qt.ui.utility.widget.context_selector import ContextSelector
+from ftrack_connect_pipeline_qt import utils
 
+import uuid
 
 class QtClient(client.Client, QtWidgets.QWidget):
     '''
@@ -50,6 +52,8 @@ class QtClient(client.Client, QtWidgets.QWidget):
             ).one()
             self.context_selector.setEntity(context_entity)
         self.add_hosts(self.discover_hosts())
+
+        self.threadpool = QtCore.QThreadPool()
 
     def add_hosts(self, host_connections):
         '''
@@ -172,11 +176,28 @@ class QtClient(client.Client, QtWidgets.QWidget):
         self.widget_factory.set_definition_type(self.definition['type'])
         self.widget_factory.set_package(self.current_package)
 
-        self._current_def = self.widget_factory.create_widget(
-            definition['name'],
-            schema,
-            self.definition
+
+        worker = utils.WorkerT(
+                self.widget_factory.find_widget,
+                definition['name'],
+                schema,
+                self.definition
+            )
+        worker.start()
+        while worker.isRunning():
+            app = QtWidgets.QApplication.instance()
+            app.processEvents()
+        if worker.error:
+            raise worker.error[1].with_traceback(worker.error[2])
+
+        widget_fn = worker.result
+        widget = self.widget_factory.create_widget(
+            widget_fn=widget_fn,
+            name=definition['name'],
+            schema_fragment=schema,
+            fragment_data= self.definition
         )
+        self._current_def = widget
         self.widget_factory.check_components()
         self.scroll.setWidget(self._current_def)
 

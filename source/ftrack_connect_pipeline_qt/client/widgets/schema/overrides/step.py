@@ -5,7 +5,8 @@
 from Qt import QtCore, QtWidgets
 from ftrack_connect_pipeline_qt.client.widgets.schema import BaseJsonWidget
 from ftrack_connect_pipeline_qt.ui.utility.widget.accordion import AccordionWidget
-
+import uuid
+from ftrack_connect_pipeline_qt import utils
 
 class StepArray(BaseJsonWidget):
     '''
@@ -54,13 +55,32 @@ class StepArray(BaseJsonWidget):
                 accordion_widget = AccordionWidget(
                     title=name, checkable=optional_component
                 )
-                obj = self.widget_factory.create_widget(
+
+                worker = utils.WorkerT(
+                    self.widget_factory.find_widget,
                     name, self.schema_fragment['items'], data,
                     self.previous_object_data
                 )
-                obj.layout().setContentsMargins(0, 0, 0, 0)
-                obj.layout().setSpacing(0)
-                accordion_widget.add_widget(obj)
+
+                worker.start()
+                while worker.isRunning():
+                    app = QtWidgets.QApplication.instance()
+                    app.processEvents()
+                if worker.error:
+                    raise worker.error[1].with_traceback(worker.error[2])
+
+                widget_fn = worker.result
+
+                widget = self.widget_factory.create_widget(
+                    widget_fn=widget_fn,
+                    name=name,
+                    schema_fragment=self.schema_fragment['items'],
+                    fragment_data=data,
+                    previous_object_data=self.previous_object_data
+                )
+                widget.layout().setContentsMargins(0, 0, 0, 0)
+                widget.layout().setSpacing(0)
+                accordion_widget.add_widget(widget)
 
                 groupBox.layout().addWidget(accordion_widget)
                 self._accordion_widgets.append(accordion_widget)

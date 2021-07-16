@@ -3,6 +3,8 @@
 
 from Qt import QtCore, QtWidgets
 from ftrack_connect_pipeline_qt.client.widgets.schema import BaseJsonWidget
+import uuid
+from ftrack_connect_pipeline_qt import utils
 
 def merge(source, destination):
     """
@@ -50,11 +52,30 @@ class JsonObject(BaseJsonWidget):
             for k, v in self.schema_fragment.items():
                 if k != 'allOf':
                     new_schema[k] = merge(v, new_schema[k])
-            widget = self.widget_factory.create_widget(
+
+            worker = utils.WorkerT(
+                self.widget_factory.find_widget,
                 self.name, new_schema, self.fragment_data,
                 self.previous_object_data
             )
+            worker.start()
+            while worker.isRunning():
+                app = QtWidgets.QApplication.instance()
+                app.processEvents()
+            if worker.error:
+                raise worker.error[1].with_traceback(worker.error[2])
+
+            widget_fn = worker.result
+
+            widget = self.widget_factory.create_widget(
+                widget_fn=widget_fn,
+                name=self.name,
+                schema_fragment=new_schema,
+                fragment_data=self.fragment_data,
+                previous_object_data=self.previous_object_data
+            )
             self.layout().addWidget(widget)
+
             return
 
         self.inner_widget = self.create_inner_widget(self.name, self._parent)
@@ -83,11 +104,34 @@ class JsonObject(BaseJsonWidget):
                     new_fragment_data = None
                     if self.fragment_data:
                         new_fragment_data = self.fragment_data.get(k)
+
+                    guid = uuid.uuid4().hex
+                    worker = utils.WorkerT(
+                        self.widget_factory.find_widget,
+                        name=k,
+                        schema_fragment=v,
+                        fragment_data=new_fragment_data,
+                        previous_object_data=self.fragment_data
+                    )
+                    worker.start()
+                    while worker.isRunning():
+                        app = QtWidgets.QApplication.instance()
+                        app.processEvents()
+                    if worker.error:
+                        raise worker.error[1].with_traceback(worker.error[2])
+
+                    widget_fn = worker.result
+
                     widget = self.widget_factory.create_widget(
-                        k, v, new_fragment_data, self.fragment_data
+                        widget_fn=widget_fn,
+                        name=k,
+                        schema_fragment=v,
+                        fragment_data=new_fragment_data,
+                        previous_object_data=self.fragment_data
                     )
                     self.innerLayout.addWidget(widget)
                     self.properties_widgets[k] = widget
+
         self.inner_widget.layout().addLayout(self.innerLayout)
         self.layout().addWidget(self.inner_widget)
 

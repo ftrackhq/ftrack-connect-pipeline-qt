@@ -4,6 +4,8 @@
 
 from Qt import QtCore, QtWidgets
 from ftrack_connect_pipeline_qt.client.widgets.schema import BaseJsonWidget
+import uuid
+from ftrack_connect_pipeline_qt import utils
 
 
 class JsonArray(BaseJsonWidget):
@@ -19,7 +21,6 @@ class JsonArray(BaseJsonWidget):
             name, schema_fragment, fragment_data, previous_object_data,
             widget_factory, parent=parent
         )
-
     def build(self):
         self.count = 0
         self.maxItems = self.schema_fragment.get('maxItems')
@@ -40,11 +41,30 @@ class JsonArray(BaseJsonWidget):
                     )[self.count]
                 else:
                     schema_fragment = self.schema_fragment['items']
-                obj = self.widget_factory.create_widget(
+
+                worker = utils.WorkerT(
+                    self.widget_factory.find_widget,
                     name, schema_fragment, data,
                     self.previous_object_data
                 )
-                self.innerLayout.addWidget(obj)
+
+                worker.start()
+                while worker.isRunning():
+                    app = QtWidgets.QApplication.instance()
+                    app.processEvents()
+                if worker.error:
+                    raise worker.error[1].with_traceback(worker.error[2])
+
+                widget_fn = worker.result
+
+                widget = self.widget_factory.create_widget(
+                    widget_fn=widget_fn,
+                    name=name,
+                    schema_fragment=schema_fragment,
+                    fragment_data=data,
+                    previous_object_data=self.previous_object_data
+                )
+                self.innerLayout.addWidget(widget)
                 self.count += 1
 
         self.layout().addLayout(self.innerLayout)
