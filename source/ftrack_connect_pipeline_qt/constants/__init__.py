@@ -15,5 +15,7 @@ _BASE_ = 'ftrack.pipeline'
 
 MAIN_FRAMEWORK_WIDGET = 'main_framework_widget'
 
+PIPELINE_WIDGET_LAUNCH = '{}.client.launch'.format(_BASE_)
+
 # Avoid circular dependencies.
 from ftrack_connect_pipeline_qt.constants.icons import *
