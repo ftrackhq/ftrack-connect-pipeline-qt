@@ -226,6 +226,7 @@ class QtPublisherClientWidget(QtPublisherClient, QtWidgets.QFrame):
 
     def _clear_widget(self):
         '''Remove main client widget'''
+        self.widget_factory.reset_widget()
         if self.scroll and self.scroll.widget():
             self.scroll.widget().deleteLater()
 

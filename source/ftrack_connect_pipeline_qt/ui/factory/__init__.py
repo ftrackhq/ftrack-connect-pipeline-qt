@@ -23,9 +23,10 @@ from ftrack_connect_pipeline_qt.ui.factory.ui_overrides import (
     UI_OVERRIDES,
 )
 from ftrack_connect_pipeline_qt.ui.utility.widget import line
+from ftrack_connect_pipeline_qt.ui import BaseUi
 
 
-class WidgetFactoryBase(QtWidgets.QWidget):
+class WidgetFactoryBase(QtWidgets.QWidget, BaseUi):
     '''Main class to build widgets from json schemas and run definitions with progress indicator'''
 
     widgetAssetUpdated = QtCore.Signal(
@@ -46,6 +47,13 @@ class WidgetFactoryBase(QtWidgets.QWidget):
 
     host_types = None
     ui_types = None
+
+    def reset_widget(self):
+        for id, widget in self._widgets_ref.items():
+            self.logger.info(f'deleting {widget} with id {id}')
+            widget.deleteLater()
+            del widget
+        self._widgets_ref = {}
 
     @property
     def widgets(self):

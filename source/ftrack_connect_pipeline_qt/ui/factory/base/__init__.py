@@ -6,9 +6,10 @@ import uuid
 from Qt import QtGui, QtCore, QtWidgets
 
 from ftrack_connect_pipeline_qt.ui.utility.widget import line
+from ftrack_connect_pipeline_qt.ui import BaseUi
 
 
-class BaseUIWidgetObject(object):
+class BaseUIWidgetObject(BaseUi):
     '''
     Base class of a widget representation from json schema types, wrapping a QT widget. Instantiated from the widget factory.
     '''

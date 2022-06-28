@@ -4,9 +4,10 @@
 from Qt import QtCore, QtWidgets, QtGui, QtSvg
 
 from ftrack_connect_pipeline import constants as core_constants
+from ftrack_connect_pipeline_qt.ui import BaseUi
 
 
-class MaterialIcon(QtGui.QIcon):
+class MaterialIcon(QtGui.QIcon, BaseUi):
     '''Material icon, displaying SVG material icon images'''
 
     def __init__(self, name, color=None, variant=None, parent=None):
@@ -72,7 +73,7 @@ class MaterialIcon(QtGui.QIcon):
         super(MaterialIcon, self).__init__(pixmap, parent=parent)
 
 
-class MaterialIconWidget(QtWidgets.QWidget):
+class MaterialIconWidget(QtWidgets.QWidget, BaseUi):
     '''Material icon widget, support status > icon encoding'''
 
     @property

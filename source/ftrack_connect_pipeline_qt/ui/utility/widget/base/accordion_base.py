@@ -9,9 +9,10 @@ from ftrack_connect_pipeline_qt.ui.utility.widget.icon import (
     MaterialIconWidget,
 )
 from ftrack_connect_pipeline_qt.utils import set_property
+from ftrack_connect_pipeline_qt.ui import BaseUi
 
 
-class AccordionBaseWidget(QtWidgets.QFrame):
+class AccordionBaseWidget(QtWidgets.QFrame, BaseUi):
     '''An utility accordion widget providing a header which can be expanded to show content'''
 
     clicked = QtCore.Signal(object)
