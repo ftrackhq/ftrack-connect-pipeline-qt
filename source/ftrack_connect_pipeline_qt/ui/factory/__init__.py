@@ -50,7 +50,6 @@ class WidgetFactoryBase(QtWidgets.QWidget, BaseUi):
 
     def reset_widget(self):
         for id, widget in self._widgets_ref.items():
-            self.logger.info(f'deleting {widget} with id {id}')
             widget.deleteLater()
             del widget
         self._widgets_ref = {}

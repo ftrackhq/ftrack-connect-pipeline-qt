@@ -65,7 +65,6 @@ class BaseUIWidgetObject(BaseUi):
         )
 
         self.fragment_data = fragment_data
-        self._parent = parent
 
         self.name = name
         self._widget = None
@@ -97,10 +96,6 @@ class BaseUIWidgetObject(BaseUi):
             self.widget.layout().setContentsMargins(0, 0, 0, 0)
             self.widget.layout().setSpacing(5)
             self.widget.setToolTip(self.description)
-
-    def parent(self):
-        '''Return the parent widget'''
-        return self._parent
 
     def parent_widget(self, widget, add_line=False):
         '''Add the *widget* to wrapped widget layout, setting this widget (me) to be the parent.'''
