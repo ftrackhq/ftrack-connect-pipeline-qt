@@ -112,7 +112,8 @@ class BaseUIWidgetObject(BaseUi):
             )
             self.widget.layout().addWidget(widget)
             if add_line:
-                self.widget.layout().addWidget(line.Line(parent=self.parent()))
+                new_line = line.Line()
+                self.widget.layout().addWidget(new_line)
             if (
                 self.fragment_data
                 and self.fragment_data.get('visible', True) is False

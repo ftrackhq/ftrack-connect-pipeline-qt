@@ -131,14 +131,14 @@ class QtAssemblerClientWidget(QtLoaderClient, dialog.Dialog):
         self.layout().setContentsMargins(16, 16, 16, 16)
         self.layout().setSpacing(0)
         self.layout().setContentsMargins(16, 16, 16, 16)
-        self.header = header.Header(self.session, parent=self.parent())
+        self.header = header.Header(self.session, parent=self)
         self.header.setMinimumHeight(50)
         # Create and add the asset manager client
         self.asset_manager = QtAssetManagerClientWidget(
             self.event_manager,
             self._asset_list_model,
             is_assembler=True,
-            parent=self.parent(),
+            parent=self,
         )
 
     def build_left_widget(self):
@@ -152,11 +152,11 @@ class QtAssemblerClientWidget(QtLoaderClient, dialog.Dialog):
         self._left_widget.layout().addWidget(self.header)
 
         self._left_widget.layout().addWidget(
-            line.Line(style='solid', parent=self.parent())
+            line.Line(style='solid', parent=self)
         )
 
         self.progress_widget = AssemblerWidgetFactory.create_progress_widget(
-            parent=self.parent()
+            parent=self
         )
         self.header.content_container.layout().addWidget(
             self.progress_widget.widget
@@ -165,7 +165,7 @@ class QtAssemblerClientWidget(QtLoaderClient, dialog.Dialog):
         # Have definition selector but invisible unless there are multiple hosts
         self.definition_selector = (
             definition_selector.AssemblerDefinitionSelector(
-                parent=self.parent()
+                parent=self
             )
         )
         self.definition_selector.refreshed.connect(partial(self.refresh, True))
@@ -223,14 +223,14 @@ class QtAssemblerClientWidget(QtLoaderClient, dialog.Dialog):
         self._right_widget.layout().setSpacing(0)
 
         self.context_selector = ContextSelector(
-            self.session, parent=self.parent()
+            self.session, parent=self
         )
         self._right_widget.layout().addWidget(
             self.context_selector, QtCore.Qt.AlignTop
         )
 
         self._right_widget.layout().addWidget(
-            line.Line(style='solid', parent=self.parent())
+            line.Line(style='solid', parent=self)
         )
 
         self._right_widget.layout().addWidget(self.asset_manager, 100)

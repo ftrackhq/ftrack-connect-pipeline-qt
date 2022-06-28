@@ -159,7 +159,7 @@ class WidgetFactoryBase(QtWidgets.QWidget, BaseUi):
         if obj_override == qt_constants.NOT_SET:
             obj_override = UI_OVERRIDES.get(type_name).get(widget_type)
         if obj_override and obj_override != qt_constants.NOT_SET:
-            return obj_override(name, data, parent=self.parent())
+            return obj_override(name, data, parent=self)
         return obj_override
 
     @staticmethod
@@ -179,7 +179,7 @@ class WidgetFactoryBase(QtWidgets.QWidget, BaseUi):
         Return the main widget
         '''
         return UI_OVERRIDES.get('main_widget')(
-            None, None, parent=self.parent()
+            None, None, parent=self
         )
 
     @staticmethod
@@ -334,7 +334,7 @@ class WidgetFactoryBase(QtWidgets.QWidget, BaseUi):
 
         main_obj.widget.layout().addWidget(self.context_obj.widget)
 
-        main_obj.widget.layout().addWidget(line.Line(parent=self.parent()))
+        main_obj.widget.layout().addWidget(line.Line(parent=self))
 
         self.components_section = QtWidgets.QWidget()
         self.components_section.setLayout(QtWidgets.QVBoxLayout())

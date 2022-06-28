@@ -51,7 +51,7 @@ class QtPublisherClientWidget(QtPublisherClient, QtWidgets.QFrame):
         self.widget_factory = PublisherWidgetFactory(
             self.event_manager,
             self.ui_types,
-            parent=self.parent(),
+            parent=self,
         )
         self.is_valid_asset_name = False
         self.open_assembler_button = None
