@@ -246,8 +246,10 @@ class QtAssemblerClientWidget(QtLoaderClient, dialog.Dialog):
 
         # Create a splitter and add to client
         self.splitter = QtWidgets.QSplitter(QtCore.Qt.Horizontal)
-        self.splitter.addWidget(self.build_left_widget())
-        self.splitter.addWidget(self.build_right_widget())
+        left_widget = self.build_left_widget()
+        self.splitter.addWidget(left_widget)
+        right_widget = self.build_right_widget()
+        self.splitter.addWidget(right_widget)
         self.splitter.setHandleWidth(1)
         self.splitter.setSizes([600, 200])
 

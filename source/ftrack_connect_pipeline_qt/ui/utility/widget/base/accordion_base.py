@@ -184,8 +184,8 @@ class AccordionBaseWidget(QtWidgets.QFrame, BaseUi):
         main_widget.layout().setAlignment(QtCore.Qt.AlignTop)
         main_widget.layout().setContentsMargins(0, 0, 0, 0)
         main_widget.layout().setSpacing(1)
-
-        main_widget.layout().addWidget(self.init_header(self._title))
+        header = self.init_header(self._title)
+        main_widget.layout().addWidget(header)
 
         self._init_content()
         main_widget.layout().addWidget(self._content)

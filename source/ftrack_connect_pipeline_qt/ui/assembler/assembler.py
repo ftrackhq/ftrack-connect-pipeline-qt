@@ -313,8 +313,8 @@ class AssemblerBrowserWidget(AssemblerBaseWidget):
             self._fetch_more_button.setVisible(False)
             self._fetch_more_button.clicked.connect(self._fetch_more)
             widget.layout().addWidget(self._fetch_more_button)
-
-            widget.layout().addWidget(QtWidgets.QLabel(), 100)
+            label = QtWidgets.QLabel()
+            widget.layout().addWidget(label, 100)
 
             self.scroll.setWidget(widget)
 
@@ -647,8 +647,8 @@ class DependenciesListWidget(AssemblerListBaseWidget):
             component_widget.clicked.connect(
                 partial(self.asset_clicked, component_widget)
             )
-
-        self.layout().addWidget(QtWidgets.QLabel(), 1000)
+        label = QtWidgets.QLabel()
+        self.layout().addWidget(label, 1000)
         self.refreshed.emit()
 
 
@@ -673,7 +673,8 @@ class BrowserListWidget(AssemblerListBaseWidget):
     def build(self):
         '''(Override)'''
         super(BrowserListWidget, self).build()
-        self.layout().addWidget(QtWidgets.QLabel(), 100)
+        label = QtWidgets.QLabel()
+        self.layout().addWidget(label, 100)
 
     def post_build(self):
         '''(Override)'''

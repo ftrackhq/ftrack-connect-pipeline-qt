@@ -332,8 +332,8 @@ class WidgetFactoryBase(QtWidgets.QWidget, BaseUi):
         )
 
         main_obj.widget.layout().addWidget(self.context_obj.widget)
-
-        main_obj.widget.layout().addWidget(line.Line(parent=self))
+        line_widget=line.Line(parent=self)
+        main_obj.widget.layout().addWidget(line_widget)
 
         self.components_section = QtWidgets.QWidget()
         self.components_section.setLayout(QtWidgets.QVBoxLayout())

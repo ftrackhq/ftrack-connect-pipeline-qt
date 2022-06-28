@@ -93,7 +93,8 @@ class QtPublisherClientWidget(QtPublisherClient, QtWidgets.QFrame):
         self.header = header.Header(self.session, parent=self)
         self.layout().addWidget(self.header)
         self.progress_widget = self.widget_factory.progress_widget
-        self.header.content_container.layout().addWidget(
+        container_layout = self.header.content_container.layout()
+        container_layout.addWidget(
             self.progress_widget.widget
         )
 
@@ -120,8 +121,8 @@ class QtPublisherClientWidget(QtPublisherClient, QtWidgets.QFrame):
 
         self.layout().addWidget(self.definition_selector)
         self.layout().addWidget(self.scroll, 100)
-
-        self.layout().addWidget(self._build_button_widget())
+        button_widget = self._build_button_widget()
+        self.layout().addWidget(button_widget)
         self.run_button.setText('PUBLISH')
 
     def _build_button_widget(self):

@@ -83,7 +83,8 @@ class DefinitionSelectorBase(QtWidgets.QWidget):
 
     def build(self):
         # Definition section
-        self.layout().addWidget(self.build_definition_widget())
+        definitions_widget = self.build_definition_widget()
+        self.layout().addWidget(definitions_widget)
 
         self.no_definitions_label = QtWidgets.QLabel()
         self.layout().addWidget(self.no_definitions_label)
