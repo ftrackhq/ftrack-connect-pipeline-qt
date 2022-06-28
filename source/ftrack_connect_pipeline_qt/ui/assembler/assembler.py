@@ -631,7 +631,7 @@ class DependenciesListWidget(AssemblerListBaseWidget):
                 index,
                 self._assembler_widget,
                 self.model.event_manager,
-                parent=self.parent(),
+                parent=self
             )
             set_property(
                 component_widget,
@@ -715,7 +715,7 @@ class BrowserListWidget(AssemblerListBaseWidget):
             index,
             self._assembler_widget,
             self.model.event_manager,
-            parent=self.parent(),
+            parent=self,
         )
         set_property(
             component_widget,

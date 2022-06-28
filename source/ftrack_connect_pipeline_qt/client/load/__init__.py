@@ -387,7 +387,7 @@ class QtAssemblerClientWidget(QtLoaderClient, dialog.Dialog):
         )
         if len(component_widgets) == 0:
             dlg = ModalDialog(
-                self.parent(),
+                self,
                 title='ftrack Assembler',
                 question='{} all?'.format(
                     'Load' if method == 'init_and_load' else 'Track'

@@ -110,7 +110,7 @@ class QtPublisherClientWidget(QtPublisherClient, QtWidgets.QFrame):
 
         self.definition_selector = (
             definition_selector.PublisherDefinitionSelector(
-                parent=self.parent()
+                parent=self
             )
         )
         self.definition_selector.refreshed.connect(self.refresh)

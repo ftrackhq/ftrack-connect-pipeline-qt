@@ -96,7 +96,7 @@ class Overlay(QtWidgets.QFrame):
             # Manually clear focus from any widget that is overlaid. This
             # works in conjunction with :py:meth`eventFilter` to prevent
             # interaction with overlaid widgets.
-            parent = self.parent()
+            parent = self
             if parent.hasFocus():
                 parent.clearFocus()
             else:

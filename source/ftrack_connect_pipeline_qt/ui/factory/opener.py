@@ -16,7 +16,7 @@ class OpenerWidgetFactory(OpenerAssemblerWidgetFactoryBase):
             event_manager, ui_types, parent=parent
         )
         self.progress_widget = OpenerWidgetFactory.create_progress_widget(
-            parent=self.parent()
+            parent=self
         )
 
     @staticmethod
