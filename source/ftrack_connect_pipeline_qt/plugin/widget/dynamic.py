@@ -5,6 +5,8 @@ from functools import partial
 
 from Qt import QtWidgets, QtCore
 
+from ftrack_connect_pipeline.definition.definition_object import DefinitionList
+
 from ftrack_connect_pipeline_qt.plugin.widget import BaseOptionsWidget
 from ftrack_connect_pipeline_qt.ui.utility.widget import group_box
 
@@ -34,6 +36,7 @@ class DynamicWidget(BaseOptionsWidget):
             int: self._build_int_widget,
             float: self._build_float_widget,
             list: self._build_list_widget,
+            DefinitionList: self._build_list_widget,
             bool: self._build_bool_widget,
         }
         super(DynamicWidget, self).__init__(
