@@ -398,8 +398,8 @@ class AssemblerBaseWidget(QtWidgets.QWidget):
                                     # Inject context ident
                                     for plugin in (
                                         definition_fragment[key]
-                                        .get_first(type=core_constants.CONTEXT)
                                         .get_all(
+                                            type=core_constants.CONTEXT,
                                             category=core_constants.PLUGIN
                                         )
                                     ):
