@@ -450,11 +450,6 @@ class QtAssemblerClientWidget(QtLoaderClient, dialog.Dialog):
                             type=core_constants.plugin._PLUGIN_IMPORTER_TYPE,
                         ):
                             plugin['default_method'] = method
-                    print(
-                        '@@@ definition to run: {}'.format(
-                            definition.to_json(indent=2)
-                        )
-                    )
                     self.run_definition(definition, engine_type)
                     # Did it go well?
                     if factory.has_error:

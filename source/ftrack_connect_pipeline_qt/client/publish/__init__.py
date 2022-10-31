@@ -224,7 +224,7 @@ class QtPublisherClientWidget(QtPublisherClient, QtWidgets.QFrame):
 
     def change_definition(self, definition, schema, component_names_filter):
         '''
-        Triggered when definition_changed F called from the host_selector.
+        Triggered when definition_changed is called from the host_selector.
         Generates the widgets interface from the given *schema* and *definition*
         '''
         self._component_names_filter = component_names_filter

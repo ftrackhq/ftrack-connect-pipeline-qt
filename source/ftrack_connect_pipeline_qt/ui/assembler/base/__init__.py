@@ -395,30 +395,29 @@ class AssemblerBaseWidget(QtWidgets.QWidget):
                                     )
                                     if key != core_constants.CONTEXTS:
                                         continue
-                                    # Remove open context
-                                    for stage in (
+                                    # Inject context ident
+                                    for plugin in (
                                         definition_fragment[key]
                                         .get_first(type=core_constants.CONTEXT)
-                                        .get_all(category=core_constants.STAGE)
-                                    ):
-                                        for plugin in stage.get_all(
+                                        .get_all(
                                             category=core_constants.PLUGIN
-                                        ):
-                                            if not 'options' in plugin:
-                                                plugin['options'] = {}
-                                            # Store version
-                                            plugin['options'][
-                                                'asset_name'
-                                            ] = version['asset']['name']
-                                            plugin['options'][
-                                                'asset_id'
-                                            ] = version['asset']['id']
-                                            plugin['options'][
-                                                'version_number'
-                                            ] = version['version']
-                                            plugin['options'][
-                                                'version_id'
-                                            ] = version['id']
+                                        )
+                                    ):
+                                        if not 'options' in plugin:
+                                            plugin['options'] = {}
+                                        # Store version
+                                        plugin['options'][
+                                            'asset_name'
+                                        ] = version['asset']['name']
+                                        plugin['options'][
+                                            'asset_id'
+                                        ] = version['asset']['id']
+                                        plugin['options'][
+                                            'version_number'
+                                        ] = version['version']
+                                        plugin['options'][
+                                            'version_id'
+                                        ] = version['id']
                         else:
                             self.client.logger.debug(
                                 '        File formats {} does not intersect with {}!'.format(
@@ -690,29 +689,23 @@ class ComponentBaseWidget(AccordionBaseWidget):
     def _set_default_mode(self):
         '''Find out from which is the default load mode and set it'''
         mode = self._modes[0]
-        stage = self.definition.get_first(
-            type=core_constants.COMPONENT
-        ).get_first(
-            category=core_constants.STAGE,
-            name=core_constants.plugin._PLUGIN_IMPORTER_TYPE,
+        plugin = self.definition.get_first(
+            category=core_constants.PLUGIN,
+            type=core_constants.plugin._PLUGIN_IMPORTER_TYPE,
         )
-        plugin = stage.get_first(category=core_constants.PLUGIN)
         if not 'options' in plugin:
             plugin['options'] = {}
-        mode = plugin['options'].get('load_mode', 'import')
+        mode = plugin['options'].get('load_mode', mode)
         self._mode_selector.setCurrentIndex(self._modes.index(mode))
 
     def _mode_selected(self, index):
         '''Load mode has been selected, store in definition'''
         mode = self._mode_selector.itemData(index)
         # Store mode in working definition
-        stage = self.definition.get_first(
-            type=core_constants.COMPONENT
-        ).get_first(
-            category=core_constants.STAGE,
-            name=core_constants.plugin._PLUGIN_IMPORTER_TYPE,
+        plugin = self.definition.get_first(
+            category=core_constants.PLUGIN,
+            type=core_constants.plugin._PLUGIN_IMPORTER_TYPE,
         )
-        plugin = stage.get_first(category=core_constants.PLUGIN)
         plugin['options']['load_mode'] = mode
 
     def _build_options(self):
