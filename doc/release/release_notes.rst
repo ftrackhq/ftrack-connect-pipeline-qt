@@ -21,6 +21,12 @@ Release Notes
         Use core pipeline DefinitionObject API instead of raw definition dictionary operations.
 
 
+    .. change:: fixed
+        :tags: dynamicwidget
+
+        Fixed bug where default plugin option list item were not selected.
+
+
     .. change:: change
         :tags: assembler
 
