@@ -26,6 +26,10 @@ QFrame[background='houdini'], QDialog[background='houdini'] {
     background: rgb(66,66,66);
 }
 
+QFrame[background='unreal'], QDialog[background='houdini'] {
+    background: rgb(40,40,40);
+}
+
 QtAssetManagerClientWidget[assembler='true'] {
     background-color: #1A2027;
 }
