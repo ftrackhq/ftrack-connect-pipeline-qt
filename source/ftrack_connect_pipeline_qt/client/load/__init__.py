@@ -49,8 +49,10 @@ class QtLoaderClient(LoaderClient):
 
     ui_types = [core_constants.UI_TYPE, qt_constants.UI_TYPE]
 
-    def __init__(self, event_manager):
-        super(QtLoaderClient, self).__init__(event_manager)
+    def __init__(self, event_manager, multithreading_enabled=True):
+        super(QtLoaderClient, self).__init__(
+            event_manager, multithreading_enabled=multithreading_enabled
+        )
         self.logger.debug('start qt loader')
 
 
@@ -75,7 +77,14 @@ class QtAssemblerClientWidget(QtLoaderClient, dialog.Dialog):
 
     contextChanged = QtCore.Signal(object)  # Context has changed
 
-    def __init__(self, event_manager, modes, asset_list_model, parent=None):
+    def __init__(
+        self,
+        event_manager,
+        modes,
+        asset_list_model,
+        multithreading_enabled=True,
+        parent=None,
+    ):
         '''
         Initialize the assembler client
 
@@ -86,7 +95,9 @@ class QtAssemblerClientWidget(QtLoaderClient, dialog.Dialog):
         :param parent:
         '''
         dialog.Dialog.__init__(self, parent=parent)
-        QtLoaderClient.__init__(self, event_manager)
+        QtLoaderClient.__init__(
+            self, event_manager, multithreading_enabled=multithreading_enabled
+        )
 
         self.logger.debug('start qt assembler')
 
@@ -131,7 +142,10 @@ class QtAssemblerClientWidget(QtLoaderClient, dialog.Dialog):
         self.header.setMinimumHeight(50)
         # Create and add the asset manager client
         self.asset_manager = QtAssetManagerClientWidget(
-            self.event_manager, self._asset_list_model, is_assembler=True
+            self.event_manager,
+            self._asset_list_model,
+            is_assembler=True,
+            multithreading_enabled=self.multithreading_enabled,
         )
 
     def build_left_widget(self):
@@ -493,7 +507,8 @@ class QtAssemblerClientWidget(QtLoaderClient, dialog.Dialog):
         if force_hard_refresh:
             self.hard_refresh = True
         if self.hard_refresh:
-            self._assembler_widget.rebuild()
+            if self._assembler_widget:
+                self._assembler_widget.rebuild()
             self.hard_refresh = False
 
     def _launch_assembler(self):
