@@ -6,10 +6,7 @@ import sys
 import ftrack_api
 import functools
 import logging
-
-NAME = 'ftrack-connect-pipeline-qt'
-
-logger = logging.getLogger('{}.hook'.format(NAME.replace('-', '_')))
+import re
 
 plugin_base_dir = os.path.normpath(
     os.path.join(os.path.abspath(os.path.dirname(__file__)), '..')
@@ -19,13 +16,26 @@ python_dependencies = os.path.join(plugin_base_dir, 'dependencies')
 
 sys.path.append(python_dependencies)
 
+# Check if PySide2 is built with QT
+pyside_dependency = None
+for filename in os.listdir(python_dependencies):
+    if re.match('PySide[\d]{1}', filename):
+        pyside_dependency = filename
+        break
+if pyside_dependency is None:
+    NAME = 'ftrack-connect-pipeline-qt'
+else:
+    NAME = 'ftrack-connect-pipeline-qt-{0}'.format(pyside_dependency.lower())
+
+logger = logging.getLogger('{}.hook'.format(NAME.replace('-', '_')))
+
 
 def on_discover_pipeline_qt(session, event):
     from ftrack_connect_pipeline_qt import __version__ as integration_version
 
     data = {
         'integration': {
-            'name': 'ftrack-connect-pipeline-qt',
+            'name': NAME,
             'version': integration_version,
         }
     }
