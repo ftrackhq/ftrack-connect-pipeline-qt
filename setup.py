@@ -29,6 +29,12 @@ HOOK_PATH = os.path.join(ROOT_PATH, 'hook')
 
 BUILD_PATH = os.path.join(ROOT_PATH, 'build')
 
+PLATFORM_TO_PKGNAME_MAPPING = {
+    'darwin': 'macosx',
+    'linux': 'linux',
+    'win32': 'windows',
+}
+
 # Custom commands.
 class BuildResources(setuptools.Command):
     '''Build additional resources.'''
@@ -174,6 +180,83 @@ class BuildPlugin(setuptools.Command):
         )
 
 
+class BuildPluginPySide(setuptools.Command):
+    '''Build plugin.'''
+
+    description = 'Download dependencies and build plugin .'
+
+    user_options = []
+
+    def initialize_options(self):
+        pass
+
+    def finalize_options(self):
+        pass
+
+    def run(self):
+        self.run_command('build_resources')
+
+        '''Run the build step.'''
+        import setuptools_scm
+
+        release = setuptools_scm.get_version(version_scheme='post-release')
+        VERSION = '.'.join(release.split('.')[:3])
+        PLATFORM = sys.platform
+        PKGSUFFIX = PLATFORM_TO_PKGNAME_MAPPING[PLATFORM]
+        global STAGING_PATH
+        STAGING_PATH = os.path.join(
+            BUILD_PATH,
+            'ftrack-connect-pipeline-qt-pyside2.{}-{}'.format(
+                PKGSUFFIX, VERSION
+            ),
+        )
+        '''Run the build step.'''
+        # Clean staging path
+        shutil.rmtree(STAGING_PATH, ignore_errors=True)
+
+        # Copy plugin files
+        shutil.copytree(HOOK_PATH, os.path.join(STAGING_PATH, 'hook'))
+        dependencies_path = os.path.join(STAGING_PATH, 'dependencies')
+
+        os.makedirs(dependencies_path)
+
+        subprocess.check_call(
+            [
+                sys.executable,
+                '-m',
+                'pip',
+                'install',
+                '.',
+                '--target',
+                dependencies_path,
+            ]
+        )
+
+        # Also install PySide2
+        subprocess.check_call(
+            [
+                sys.executable,
+                '-m',
+                'pip',
+                'install',
+                'PySide2',
+                '--target',
+                dependencies_path,
+            ]
+        )
+
+        shutil.make_archive(
+            os.path.join(
+                BUILD_PATH,
+                'ftrack-connect-pipeline-qt-pyside2.{0}-{1}'.format(
+                    PKGSUFFIX, VERSION
+                ),
+            ),
+            'zip',
+            STAGING_PATH,
+        )
+
+
 # Custom commands.
 class PyTest(TestCommand):
     '''Pytest command.'''
@@ -205,7 +288,7 @@ setup(
     description='Ftrack qt pipeline integration framework.',
     long_description=open(README_PATH).read(),
     keywords='ftrack',
-    url='https://bitbucket.org/ftrack/ftrack-connect-pipeline-qt',
+    url='https://github.com/ftrackhq/ftrack-connect-pipeline-qt',
     author='ftrack',
     author_email='support@ftrack.com',
     license='Apache License (2.0)',
@@ -232,6 +315,7 @@ setup(
     cmdclass={
         'test': PyTest,
         'build_plugin': BuildPlugin,
+        'build_plugin_pyside': BuildPluginPySide,
         'build_resources': BuildResources,
         'test': PyTest,
     },

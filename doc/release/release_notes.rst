@@ -8,10 +8,14 @@ Release Notes
 *************
 
 .. release:: upcoming
+
+    .. change:: new
+
+        Provide platform dependent builds including PySide2, to support standalone, Adobe and Unreal similar integration.
+
     .. change:: new
 
         3ds Max integration - Disable multithreading for certain DCCs, Added scroll widget to publisher overlay for large option sets.
-
 
 .. release:: 1.1.0
     :date: 2022-11-08
