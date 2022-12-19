@@ -7,6 +7,20 @@
 Release Notes
 *************
 
+.. release:: upcoming
+
+    .. change:: fix
+
+        Added spacer to option widget overlays.
+
+    .. change:: fix
+
+        Fixed list alternate style bug.
+
+    .. change:: fix
+
+        Have context selector support not only tasks.
+
 .. release:: 1.2.0
     :date: 2022-12-15
 

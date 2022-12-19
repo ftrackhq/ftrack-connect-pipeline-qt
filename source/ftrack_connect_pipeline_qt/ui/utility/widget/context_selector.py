@@ -34,15 +34,13 @@ class ContextSelector(QtWidgets.QFrame):
     @entity.setter
     def entity(self, value):
         '''Set the entity to *value*'''
-        if not value:
-            return
-        do_emit_context_change = self._entity is not None
         self._entity = value
         self.entity_info.entity = value
-        self._context_id = value['id']
+        self._context_id = value['id'] if value else None
         self.set_thumbnail(self._entity)
-        if do_emit_context_change:
-            self.entityChanged.emit(value)
+        self.entityChanged.emit(value)
+        self.entity_info.setVisible(self.entity is not None)
+        self.no_entity_label.setVisible(self.entity is None)
 
     @property
     def context_id(self):
@@ -66,6 +64,8 @@ class ContextSelector(QtWidgets.QFrame):
         self,
         session,
         enble_context_change=False,
+        select_task=True,
+        browse_context_id=None,
         parent=None,
     ):
         '''
@@ -73,6 +73,8 @@ class ContextSelector(QtWidgets.QFrame):
 
         :param session: :class:`ftrack_api.session.Session`
         :param enble_context_change:  If set to to True, this contest selection is allowed to spawn the entity browser and change global context.
+        :param select_task: If true. only tasks can be selected in the entity browser. If false, any context can be selected.
+        :param browse_context_id: If set, the entity browser will be opened with this context id as the root.
         :param parent: The parent dialog or frame
         '''
 
@@ -81,6 +83,8 @@ class ContextSelector(QtWidgets.QFrame):
         self.logger = logging.getLogger(__name__)
 
         self._enble_context_change = enble_context_change
+        self._select_task = select_task
+        self._browse_context_id = browse_context_id
         self._entity = None
         self._context_id = None
         self.session = session
@@ -106,11 +110,18 @@ class ContextSelector(QtWidgets.QFrame):
         self.entity_info = EntityInfo()
         self.entity_info.setMinimumHeight(40)
         self.entity_info.setMaximumHeight(40)
+        self.entity_info.setVisible(False)
+
+        self.no_entity_label = QtWidgets.QLabel(
+            '<html><i>Please select an entity!</i></html>'
+        )
+        self.no_entity_label.setVisible(True)
 
         self.entity_browse_button = CircularButton('edit', variant='outlined')
 
         self.layout().addWidget(self.thumbnail_widget)
         self.layout().addWidget(self.entity_info)
+        self.layout().addWidget(self.no_entity_label)
         self.layout().addWidget(QtWidgets.QLabel(), 10)
         self.layout().addWidget(self.entity_browse_button)
 
@@ -168,12 +179,21 @@ class ContextSelector(QtWidgets.QFrame):
             entity_browser = EntityBrowser(
                 self.parent(),
                 self.session,
-                title='CHOOSE TASK (WORKING CONTEXT)',
+                title='CHOOSE TASK (WORKING CONTEXT)'
+                if self._select_task
+                else 'CHOOSE CONTEXT',
+                mode=EntityBrowser.MODE_TASK
+                if self._select_task
+                else EntityBrowser.MODE_CONTEXT,
             )
             entity_browser.setMinimumWidth(600)
-            entity_browser.entity = (
-                self._entity['parent'] if self._entity else None
-            )
+            if self._entity:
+                entity_browser.entity = self._entity['parent']
+            elif self._browse_context_id:
+                entity_browser.entity_id = self._browse_context_id
+            else:
+                entity_browser.entity = None
+
             # Launch browser.
             if entity_browser.exec_():
                 self.entity = entity_browser.entity
