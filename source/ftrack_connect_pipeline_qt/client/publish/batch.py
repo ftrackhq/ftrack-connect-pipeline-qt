@@ -153,10 +153,7 @@ class QtBatchPublisherClientWidget(QtPublisherClient, dialog.Dialog):
         )
 
         self.run_button.setFocus()
-        self.run_button_no_load.clicked.connect(
-            partial(self.run, "init_nodes")
-        )
-        self.run_button.clicked.connect(partial(self.run, "init_and_load"))
+        self.run_button.clicked.connect(self.run)
 
     # Host
 
