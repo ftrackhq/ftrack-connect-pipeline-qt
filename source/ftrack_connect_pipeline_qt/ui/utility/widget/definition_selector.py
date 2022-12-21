@@ -347,12 +347,12 @@ class OpenerDefinitionSelector(DefinitionSelectorBase):
         self._definition_widget.show()
 
 
-class AssemblerDefinitionSelector(DefinitionSelectorBase):
-    '''Definition selector tailored for assembler(loader) client.
+class BatchDefinitionSelector(DefinitionSelectorBase):
+    '''Definition selector tailored for assembler(loader)/batch publisher clients.
     Selection of definitions are disabled, widget is only used for extraction of definitions'''
 
     def __init__(self, parent=None):
-        super(AssemblerDefinitionSelector, self).__init__(parent=parent)
+        super(BatchDefinitionSelector, self).__init__(parent=parent)
 
     def build_definition_widget(self):
         '''Not used in assembler, build dummy.'''
@@ -364,7 +364,7 @@ class AssemblerDefinitionSelector(DefinitionSelectorBase):
         return self._definition_widget
 
     def post_build(self):
-        super(AssemblerDefinitionSelector, self).post_build()
+        super(BatchDefinitionSelector, self).post_build()
         self._definition_selector.currentIndexChanged.connect(
             self._on_change_definition
         )

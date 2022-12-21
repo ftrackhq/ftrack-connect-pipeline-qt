@@ -4,84 +4,48 @@
 import shiboken2
 from functools import partial
 
-from Qt import QtCore, QtWidgets
+from Qt import QtWidgets, QtCore
 
-from ftrack_connect_pipeline.utils import str_version
 from ftrack_connect_pipeline import constants as core_constants
-from ftrack_connect_pipeline.client.loader import LoaderClient
-from ftrack_connect_pipeline_qt.ui.utility.widget.button import (
-    AddRunButton,
-    LoadRunButton,
-)
+from ftrack_connect_pipeline.utils import str_version
 
-from ftrack_connect_pipeline_qt.utils import get_theme, set_theme
 from ftrack_connect_pipeline_qt import constants as qt_constants
 from ftrack_connect_pipeline_qt.ui.utility.widget.dialog import ModalDialog
+from ftrack_connect_pipeline_qt.client.publish import QtPublisherClient
+from ftrack_connect_pipeline_qt.utils import get_theme, set_theme
+from ftrack_connect_pipeline_qt.ui.factory import (
+    WidgetFactoryBase,
+)
+from ftrack_connect_pipeline_qt.ui.batch_publisher.batch_publisher import (
+    BatchPublisherWidget,
+)
 from ftrack_connect_pipeline_qt.ui.utility.widget import (
     dialog,
     header,
+    line,
     host_selector,
     definition_selector,
-    line,
-    tab,
+    button,
+    scroll_area,
 )
 from ftrack_connect_pipeline_qt.ui.utility.widget.context_selector import (
     ContextSelector,
 )
-from ftrack_connect_pipeline_qt.utils import clear_layout
-
-from ftrack_connect_pipeline_qt.client.asset_manager import (
-    QtAssetManagerClientWidget,
-)
-from ftrack_connect_pipeline_qt.ui.assembler.assembler import (
-    AssemblerDependenciesWidget,
-    AssemblerBrowserWidget,
-)
-from ftrack_connect_pipeline_qt.ui.factory.assembler import (
-    AssemblerWidgetFactory,
+from ftrack_connect_pipeline_qt.ui.utility.widget.button import (
+    RunButton,
 )
 
 
-class QtLoaderClient(LoaderClient):
-    '''
-    Loader client class, as assembler is based on
-    '''
-
-    ui_types = [core_constants.UI_TYPE, qt_constants.UI_TYPE]
-
-    def __init__(self, event_manager, multithreading_enabled=True):
-        super(QtLoaderClient, self).__init__(
-            event_manager, multithreading_enabled=multithreading_enabled
-        )
-        self.logger.debug('start qt loader')
-
-
-class QtAssemblerClientWidget(QtLoaderClient, dialog.Dialog):
-    '''
-    Compound client dialog containing the assembler based on loader with the
-    asset manager docked. Designed to ease to the load of dependencies and browsed
-    assets into DCC.
-    '''
-
-    assembler_match_extension = (
-        False  # Have assembler match on file extension (relaxed)
-    )
-    asset_fetch_chunk_size = (
-        10  # Amount of assets to fetch at a time within the browser
-    )
-
-    # Assembler modes
-    ASSEMBLE_MODE_DEPENDENCIES = 0
-    ASSEMBLE_MODE_BROWSE = 1
-    MODE_DEFAULT = ASSEMBLE_MODE_BROWSE
+class QtBatchPublisherClientWidget(QtPublisherClient, dialog.Dialog):
+    ''' '''
 
     contextChanged = QtCore.Signal(object)  # Context has changed
+    definitionsPopulated = QtCore.Signal(object)
 
     def __init__(
         self,
         event_manager,
-        modes,
-        asset_list_model,
+        title=None,
         multithreading_enabled=True,
         parent=None,
     ):
@@ -89,25 +53,17 @@ class QtAssemblerClientWidget(QtLoaderClient, dialog.Dialog):
         Initialize the assembler client
 
         :param event_manager: :class:`~ftrack_connect_pipeline.event.EventManager` instance
-        :param modes: Dictionary containing the load mode mapped functions
-        :param asset_list_model: instance of :class:`~ftrack_connect_pipeline_qt.ui.asset_manager.model.AssetListModel`
+        :param title: The title widget dialog should have
+        :param multithreading_enabled: Multithreading is enabled
 
         :param parent:
         '''
         dialog.Dialog.__init__(self, parent=parent)
-        QtLoaderClient.__init__(
+        QtPublisherClient.__init__(
             self, event_manager, multithreading_enabled=multithreading_enabled
         )
 
-        self.logger.debug('start qt assembler')
-
-        self.modes = modes
-        self._asset_list_model = asset_list_model
-        self.assemble_mode = (
-            -1
-        )  # The mode assembler is in - resolve dependencies or manual browse
-        self._assembler_widget = None
-        self.hard_refresh = True  # Flag telling assembler that next refresh should be a complete rebuild
+        self.logger.debug('start batch publisher')
 
         set_theme(self, get_theme())
         if self.get_theme_background_style():
@@ -121,7 +77,7 @@ class QtAssemblerClientWidget(QtLoaderClient, dialog.Dialog):
 
         self.discover_hosts()
 
-        self.setWindowTitle('ftrack Assembler')
+        self.setWindowTitle(title or 'ftrack Batch Publisher')
         self.resize(1000, 500)
 
     def get_theme_background_style(self):
@@ -139,27 +95,19 @@ class QtAssemblerClientWidget(QtLoaderClient, dialog.Dialog):
         self.layout().setContentsMargins(16, 16, 16, 16)
         self.header = header.Header(self.session)
         self.header.setMinimumHeight(50)
-        # Create and add the asset manager client
-        self.asset_manager = QtAssetManagerClientWidget(
-            self.event_manager,
-            self._asset_list_model,
-            is_assembler=True,
-            multithreading_enabled=self.multithreading_enabled,
+
+    def build(self):
+        '''Build assembler widget.'''
+
+        # Create the host selector, usually hidden
+        self.host_selector = host_selector.HostSelector(self)
+        self.layout().addWidget(self.host_selector)
+
+        self.layout().addWidget(line.Line(style='solid'))
+
+        self.progress_widget = WidgetFactoryBase.create_progress_widget(
+            core_constants.BATCH_PUBLISHER
         )
-
-    def build_left_widget(self):
-        '''Left split pane content'''
-
-        self._left_widget = QtWidgets.QWidget()
-        self._left_widget.setLayout(QtWidgets.QVBoxLayout())
-        self._left_widget.layout().setContentsMargins(0, 0, 0, 0)
-        self._left_widget.layout().setSpacing(0)
-
-        self._left_widget.layout().addWidget(self.header)
-
-        self._left_widget.layout().addWidget(line.Line(style='solid'))
-
-        self.progress_widget = AssemblerWidgetFactory.create_progress_widget()
         self.header.content_container.layout().addWidget(
             self.progress_widget.widget
         )
@@ -169,86 +117,29 @@ class QtAssemblerClientWidget(QtLoaderClient, dialog.Dialog):
             definition_selector.BatchDefinitionSelector()
         )
         self.definition_selector.refreshed.connect(partial(self.refresh, True))
-        self._left_widget.layout().addWidget(self.definition_selector)
+        self.layout().addWidget(self.definition_selector)
 
-        # Have a tabbed widget for the different import modes
+        self.context_selector = ContextSelector(self.session)
+        self.layout().addWidget(self.context_selector, QtCore.Qt.AlignTop)
 
-        self._tab_widget = AssemblerTabWidget()
-        self._tab_widget.setFocusPolicy(QtCore.Qt.NoFocus)
+        self.scroll = scroll_area.ScrollArea()
+        self.scroll.setWidgetResizable(True)
+        self.scroll.setHorizontalScrollBarPolicy(QtCore.Qt.ScrollBarAlwaysOff)
+        self.scroll.setStyle(QtWidgets.QStyleFactory.create("plastique"))
 
-        # Build dynamically to save resources if lengthy asset lists
+        self.batch_publisher_widget = BatchPublisherWidget()
+        self.scroll.setWidget(self.batch_publisher_widget)
 
-        self._dep_widget = QtWidgets.QWidget()
-        self._dep_widget.setLayout(QtWidgets.QVBoxLayout())
-        self._dep_widget.layout().setContentsMargins(0, 0, 0, 0)
-        self._dep_widget.layout().setSpacing(0)
-
-        self._tab_widget.addTab(self._dep_widget, 'Suggestions')
-
-        self._browse_widget = QtWidgets.QWidget()
-        self._browse_widget.setLayout(QtWidgets.QVBoxLayout())
-        self._browse_widget.layout().setContentsMargins(0, 0, 0, 0)
-        self._browse_widget.layout().setSpacing(0)
-
-        self._tab_widget.addTab(self._browse_widget, 'Browse')
-
-        self._left_widget.layout().addWidget(self._tab_widget)
-
-        if self.MODE_DEFAULT == self.ASSEMBLE_MODE_DEPENDENCIES:
-            # Set initial import mode, do not rebuild it as AM will trig it when it
-            # has fetched assets
-            self._tab_widget.setCurrentIndex(self.ASSEMBLE_MODE_DEPENDENCIES)
-            self.set_assemble_mode(self.ASSEMBLE_MODE_DEPENDENCIES)
+        self.layout().addWidget(self.scroll, 1000)
 
         button_widget = QtWidgets.QWidget()
         button_widget.setLayout(QtWidgets.QHBoxLayout())
         button_widget.layout().setContentsMargins(2, 4, 8, 0)
         button_widget.layout().addStretch()
-        self.run_button_no_load = AddRunButton('ADD TO SCENE')
-        button_widget.layout().addWidget(self.run_button_no_load)
-        self.run_button = LoadRunButton('LOAD INTO SCENE')
+        self.run_button = RunButton('PUBLISH')
         self.run_button.setFocus()
         button_widget.layout().addWidget(self.run_button)
-        self._left_widget.layout().addWidget(button_widget)
-
-        self._asset_selection_updated()
-
-        return self._left_widget
-
-    def build_right_widget(self):
-        '''Right split pane content'''
-
-        self._right_widget = QtWidgets.QWidget()
-        self._right_widget.setLayout(QtWidgets.QVBoxLayout())
-        self._right_widget.layout().setContentsMargins(0, 0, 0, 0)
-        self._right_widget.layout().setSpacing(0)
-
-        self.context_selector = ContextSelector(self.session)
-        self._right_widget.layout().addWidget(
-            self.context_selector, QtCore.Qt.AlignTop
-        )
-
-        self._right_widget.layout().addWidget(line.Line(style='solid'))
-
-        self._right_widget.layout().addWidget(self.asset_manager, 100)
-
-        return self._right_widget
-
-    def build(self):
-        '''Build assembler widget.'''
-
-        # Create the host selector, usually hidden
-        self.host_selector = host_selector.HostSelector(self)
-        self.layout().addWidget(self.host_selector)
-
-        # Create a splitter and add to client
-        self.splitter = QtWidgets.QSplitter(QtCore.Qt.Horizontal)
-        self.splitter.addWidget(self.build_left_widget())
-        self.splitter.addWidget(self.build_right_widget())
-        self.splitter.setHandleWidth(1)
-        self.splitter.setSizes([600, 200])
-
-        self.layout().addWidget(self.splitter, 100)
+        self.layout().addWidget(button_widget)
 
     def post_build(self):
         self.host_selector.hostChanged.connect(self.change_host)
@@ -260,8 +151,7 @@ class QtAssemblerClientWidget(QtLoaderClient, dialog.Dialog):
         self.context_selector.changeContextClicked.connect(
             self._launch_context_selector
         )
-        self._tab_widget.currentChanged.connect(self._on_tab_changed)
-        self.asset_manager.assetsDiscovered.connect(self._on_assets_discovered)
+
         self.run_button.setFocus()
         self.run_button_no_load.clicked.connect(
             partial(self.run, "init_nodes")
@@ -304,6 +194,7 @@ class QtAssemblerClientWidget(QtLoaderClient, dialog.Dialog):
         # Reset definition selector and clear client
         self.definition_selector.clear_definitions()
         self.definition_selector.populate_definitions()
+        self.definitionsPopulated.emit(self.definition_selector.definitions)
         if self.MODE_DEFAULT == self.ASSEMBLE_MODE_BROWSE:
             # Set initial import mode, do not rebuild it as AM will trig it when it
             # has fetched assets
@@ -319,57 +210,6 @@ class QtAssemblerClientWidget(QtLoaderClient, dialog.Dialog):
     def _on_components_checked(self, available_components_count):
         self.definition_changed(self.definition, available_components_count)
         self.run_button.setEnabled(available_components_count >= 1)
-
-    def _on_tab_changed(self, index):
-        self.set_assemble_mode(index)
-        self.refresh(True)
-
-    def set_assemble_mode(self, assemble_mode):
-        if assemble_mode != self.assemble_mode:
-            self.assemble_mode = assemble_mode
-            active_tab_widget = (
-                self._dep_widget
-                if self.assemble_mode == self.ASSEMBLE_MODE_DEPENDENCIES
-                else self._browse_widget
-            )
-            inactive_tab_widget = (
-                self._dep_widget
-                if self.assemble_mode != self.ASSEMBLE_MODE_DEPENDENCIES
-                else self._browse_widget
-            )
-            # Clear the other tab
-            clear_layout(inactive_tab_widget.layout())
-            # Create tab widget
-            self._assembler_widget = (
-                AssemblerDependenciesWidget(self)
-                if self.assemble_mode == self.ASSEMBLE_MODE_DEPENDENCIES
-                else AssemblerBrowserWidget(self)
-            )
-            active_tab_widget.layout().addWidget(self._assembler_widget)
-            self._assembler_widget.listWidgetCreated.connect(
-                self._on_component_list_created
-            )
-
-    def _on_component_list_created(self, component_list):
-        component_list.selectionUpdated.connect(self._asset_selection_updated)
-        self._asset_selection_updated()
-
-    def _asset_selection_updated(self, asset_selection=None):
-        if self._assembler_widget is not None:
-            loadable_count = self._assembler_widget.loadable_count
-            s = ''
-            if loadable_count > 0:
-                if len(asset_selection or []) > 0:
-                    s = ' {} ASSET{}'.format(
-                        len(asset_selection),
-                        'S' if len(asset_selection) > 1 else '',
-                    )
-                else:
-                    s = ' ALL ASSETS'
-            self.run_button_no_load.setText('ADD{} TO SCENE'.format(s))
-            self.run_button_no_load.setEnabled(loadable_count > 0)
-            self.run_button.setText('LOAD{} INTO SCENE'.format(s))
-            self.run_button.setEnabled(loadable_count > 0)
 
     # Run
 
@@ -502,24 +342,8 @@ class QtAssemblerClientWidget(QtLoaderClient, dialog.Dialog):
                     ),
                 )
 
-    def refresh(self, force_hard_refresh=False):
-        if force_hard_refresh:
-            self.hard_refresh = True
-        if self.hard_refresh:
-            if self._assembler_widget:
-                self._assembler_widget.rebuild()
-            self.hard_refresh = False
-
-    def _launch_assembler(self):
-        '''Open the assembler and close client if dialog'''
-        if not self.is_docked():
-            self.hide()
-        self.host_connection.launch_client(qt_constants.ASSEMBLER_WIDGET)
-
-    def _launch_publisher(self):
-        if not self.is_docked():
-            self.hide()
-        self.host_connection.launch_client(core_constants.PUBLISHER)
+    def refresh(self):
+        pass
 
     def _launch_context_selector(self):
         '''Close client (if not docked) and open entity browser.'''
@@ -528,12 +352,7 @@ class QtAssemblerClientWidget(QtLoaderClient, dialog.Dialog):
         self.host_connection.launch_client(qt_constants.CHANGE_CONTEXT_WIDGET)
 
     def closeEvent(self, e):
-        super(QtAssemblerClientWidget, self).closeEvent(e)
+        super(QtBatchPublisherClientWidget, self).closeEvent(e)
         self.logger.debug('closing qt client')
         # Unsubscribe to context change events
         self.unsubscribe_host_context_change()
-
-
-class AssemblerTabWidget(tab.TabWidget):
-    def __init__(self, parent=None):
-        super(AssemblerTabWidget, self).__init__(parent=parent)
