@@ -1,9 +1,6 @@
 # :coding: utf-8
 # :copyright: Copyright (c) 2014-2022 ftrack
 import os
-import json
-import copy
-import time
 
 from functools import partial
 
@@ -210,7 +207,6 @@ class AssemblerDependenciesWidget(AssemblerBaseWidget):
         # Create component list
         self._component_list = DependenciesListWidget(self)
         self.listWidgetCreated.emit(self._component_list)
-        # self._asset_list.setStyleSheet('background-color: blue;')
 
         self.scroll.setWidget(self._component_list)
 

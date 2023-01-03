@@ -106,6 +106,7 @@ class AssetListWidget(QtWidgets.QWidget):
     selectionUpdated = QtCore.Signal(
         object
     )  # Emitted when selection has been updated
+
     refreshed = QtCore.Signal()  # Should be emitted when list has been rebuilt
 
     @property
@@ -151,7 +152,7 @@ class AssetListWidget(QtWidgets.QWidget):
         raise NotImplementedError()
 
     def selection(self, as_widgets=False):
-        '''Return list of asset infos or asset widgets if *as_widgets* is True'''
+        '''Return list of mode data or asset widgets if *as_widgets* is True'''
         result = []
         for widget in self.assets:
             if widget.selected:

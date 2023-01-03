@@ -2,6 +2,7 @@
 # :coding: utf-8
 # :copyright: Copyright (c) 2014-2022 ftrack
 import shiboken2
+import traceback
 from functools import partial
 
 from Qt import QtWidgets, QtCore
@@ -16,15 +17,11 @@ from ftrack_connect_pipeline_qt.utils import get_theme, set_theme
 from ftrack_connect_pipeline_qt.ui.factory import (
     WidgetFactoryBase,
 )
-from ftrack_connect_pipeline_qt.ui.batch_publisher.batch_publisher import (
-    BatchPublisherWidget,
-)
 from ftrack_connect_pipeline_qt.ui.utility.widget import (
     dialog,
     header,
     line,
     host_selector,
-    definition_selector,
     button,
     scroll_area,
 )
@@ -46,7 +43,7 @@ class QtBatchPublisherClientWidget(QtPublisherClient, dialog.Dialog):
         self,
         event_manager,
         title=None,
-        multithreading_enabled=True,
+        immediate_run=False,
         parent=None,
     ):
         '''
@@ -59,9 +56,8 @@ class QtBatchPublisherClientWidget(QtPublisherClient, dialog.Dialog):
         :param parent:
         '''
         dialog.Dialog.__init__(self, parent=parent)
-        QtPublisherClient.__init__(
-            self, event_manager, multithreading_enabled=multithreading_enabled
-        )
+        QtPublisherClient.__init__(self, event_manager)
+        self._immediate_run = immediate_run
 
         self.logger.debug('start batch publisher')
 
@@ -78,7 +74,7 @@ class QtBatchPublisherClientWidget(QtPublisherClient, dialog.Dialog):
         self.discover_hosts()
 
         self.setWindowTitle(title or 'ftrack Batch Publisher')
-        self.resize(1000, 500)
+        self.resize(800, 600)
 
     def get_theme_background_style(self):
         return 'ftrack'
@@ -99,6 +95,8 @@ class QtBatchPublisherClientWidget(QtPublisherClient, dialog.Dialog):
     def build(self):
         '''Build assembler widget.'''
 
+        self.layout().addWidget(self.header)
+
         # Create the host selector, usually hidden
         self.host_selector = host_selector.HostSelector(self)
         self.layout().addWidget(self.host_selector)
@@ -112,25 +110,15 @@ class QtBatchPublisherClientWidget(QtPublisherClient, dialog.Dialog):
             self.progress_widget.widget
         )
 
-        # Have definition selector but invisible unless there are multiple hosts
-        self.definition_selector = (
-            definition_selector.BatchDefinitionSelector()
-        )
-        self.definition_selector.refreshed.connect(partial(self.refresh, True))
-        self.layout().addWidget(self.definition_selector)
-
         self.context_selector = ContextSelector(self.session)
         self.layout().addWidget(self.context_selector, QtCore.Qt.AlignTop)
 
-        self.scroll = scroll_area.ScrollArea()
-        self.scroll.setWidgetResizable(True)
-        self.scroll.setHorizontalScrollBarPolicy(QtCore.Qt.ScrollBarAlwaysOff)
-        self.scroll.setStyle(QtWidgets.QStyleFactory.create("plastique"))
+        self.definition_selector = self._build_definition_selector()
+        self.definition_selector.refreshed.connect(partial(self.refresh, True))
+        self.layout().addWidget(self.definition_selector)
 
-        self.batch_publisher_widget = BatchPublisherWidget()
-        self.scroll.setWidget(self.batch_publisher_widget)
-
-        self.layout().addWidget(self.scroll, 1000)
+        self.batch_publisher_widget = self._build_batch_publisher_widget()
+        self.layout().addWidget(self.batch_publisher_widget, 1000)
 
         button_widget = QtWidgets.QWidget()
         button_widget.setLayout(QtWidgets.QHBoxLayout())
@@ -147,7 +135,6 @@ class QtBatchPublisherClientWidget(QtPublisherClient, dialog.Dialog):
         self.definition_selector.definitionChanged.connect(
             self.change_definition
         )
-
         self.context_selector.changeContextClicked.connect(
             self._launch_context_selector
         )
@@ -164,7 +151,7 @@ class QtBatchPublisherClientWidget(QtPublisherClient, dialog.Dialog):
     def on_host_changed(self, host_connection):
         '''Triggered when client has set host connection'''
         if self.definition_filters:
-            self.definition_selector.definition_title_filters = (
+            self.definition_selector.definition_filters = (
                 self.definition_filters
             )
         if self.definition_extensions_filter:
@@ -186,17 +173,26 @@ class QtBatchPublisherClientWidget(QtPublisherClient, dialog.Dialog):
             # Widget has been closed while context changed
             return
         self.context_selector.context_id = self.context_id
-        # Have AM fetch assets
-        self.asset_manager.on_host_changed(self.host_connection)
         # Reset definition selector and clear client
         self.definition_selector.clear_definitions()
         self.definition_selector.populate_definitions()
         self.definitionsPopulated.emit(self.definition_selector.definitions)
-        if self.MODE_DEFAULT == self.ASSEMBLE_MODE_BROWSE:
-            # Set initial import mode, do not rebuild it as AM will trig it when it
-            # has fetched assets
-            self._tab_widget.setCurrentIndex(self.ASSEMBLE_MODE_BROWSE)
-            self.set_assemble_mode(self.ASSEMBLE_MODE_BROWSE)
+        self.batch_publisher_widget.on_context_changed(context_id)
+
+    # Definition
+
+    def change_definition(self, definition, schema=None):
+        if definition is None:
+            return
+        super(QtBatchPublisherClientWidget, self).change_definition(
+            definition, schema=schema
+        )
+        # We have a definition selection, build model data - items
+        items = self._build_items(definition)
+        # Store and present
+        self.batch_publisher_widget.set_items(
+            items, self._get_list_widget_class()
+        )
 
     # Use
 
@@ -210,9 +206,8 @@ class QtBatchPublisherClientWidget(QtPublisherClient, dialog.Dialog):
 
     # Run
 
-    def setup_widget_factory(self, widget_factory, definition, context_id):
+    def setup_widget_factory(self, widget_factory, definition):
         widget_factory.set_definition(definition)
-        widget_factory.set_context(context_id, definition['asset_type'])
         widget_factory.host_connection = self._host_connection
         widget_factory.set_definition_type(definition['type'])
 
@@ -221,123 +216,133 @@ class QtBatchPublisherClientWidget(QtPublisherClient, dialog.Dialog):
         plugin information and the *method* to be run has to be passed'''
         self.run_plugin(plugin_data, method, self.engine_type)
 
-    def run(self, method=None):
-        '''(Override) Function called when the run button is clicked.
-        *method* decides which load method to use, "init_nodes"(track) or "init_and_load"(track and load)'''
+    def _build_definition_selector(self):
+        raise NotImplementedError()
+
+    def _build_batch_publisher_widget(self):
+        raise NotImplementedError()
+
+    def _get_list_widget_class(self):
+        raise NotImplementedError()
+
+    def _build_items(self, definition):
+        raise NotImplementedError()
+
+    def prepare_run_definition(self, definition, asset_path):
+        '''Should be overridden by child.'''
+        raise NotImplementedError()
+
+    def run(self):
+        '''Function called when the run button is clicked.'''
         # Load batch of components, any selected
-        component_widgets = self._assembler_widget.component_list.selection(
+        item_widgets = self.batch_publisher_widget.item_list.selection(
             as_widgets=True
         )
-        if len(component_widgets) == 0:
-            all_component_widgets = (
-                self._assembler_widget.component_list.get_loadable()
+        if len(item_widgets) == 0:
+            dialog.ModalDialog(
+                self,
+                message='Please select at least one item to publish!'.format(),
             )
-            if len(all_component_widgets) == 0:
-                ModalDialog(
-                    self, title='ftrack Assembler', message='No assets found!'
-                )
-                return
-            if len(all_component_widgets) > 1:
-                dlg = ModalDialog(
-                    self,
-                    title='ftrack Assembler',
-                    question='{} all?'.format(
-                        'Load' if method == 'init_and_load' else 'Track'
-                    ),
-                )
-                if dlg.exec_():
-                    # Select and use all loadable - having definition
-                    component_widgets = all_component_widgets
-            else:
-                component_widgets = all_component_widgets
-        if len(component_widgets) > 0:
-            # Each component contains a definition ready to run and a factory,
-            # run them one by one. Start by preparing progress widget
-            self.progress_widget.prepare_add_steps()
-            self.progress_widget.set_status(
-                core_constants.RUNNING_STATUS, 'Initializing...'
+            return
+        # Each item contains a definition ready to run and a factory,
+        # run them one by one. Start by preparing progress widget
+        self.progress_widget.prepare_add_steps()
+        self.progress_widget.set_status(
+            core_constants.RUNNING_STATUS, 'Initializing...'
+        )
+        for item_widget in item_widgets:
+            item = self.batch_publisher_widget.item_list.model.data(
+                item_widget.index
+            )[0]
+            factory = item_widget.factory
+            factory.progress_widget = (
+                self.progress_widget
+            )  # Have factory update main progress widget
+            self.progress_widget.add_item(item)
+            self.progress_widget.add_step(
+                core_constants.CONTEXT,
+                item_widget.get_progress_label(item),
+                batch_id=item[0],
             )
-            for component_widget in component_widgets:
-                component = self._assembler_widget.component_list.model.data(
-                    component_widget.index
-                )[0]
-                factory = component_widget.factory
-                factory.progress_widget = (
-                    self.progress_widget
-                )  # Have factory update main progress widget
-                self.progress_widget.add_version(component)
-                factory.build_progress_ui(component)
-            self.progress_widget.components_added()
+            factory.build_progress_ui(item)
+        self.progress_widget.components_added()
 
-            self.progress_widget.show_widget()
-            failed = 0
-            for component_widget in component_widgets:
-                # Prepare progress widget
-                component = self._assembler_widget.component_list.model.data(
-                    component_widget.index
-                )[0]
-                self.progress_widget.set_status(
-                    core_constants.RUNNING_STATUS,
-                    'Loading {} / {}...'.format(
-                        str_version(component['version']), component['name']
-                    ),
+        self.progress_widget.show_widget()
+        failed = 0
+        for item_widget in item_widgets:
+            # Prepare progress widget
+            item = self.batch_publisher_widget.item_list.model.data(
+                item_widget.index
+            )[0]
+            self.progress_widget.set_status(
+                core_constants.RUNNING_STATUS,
+                'Publishing {}...'.format(item),
+            )
+            # Prepare batch publish definition, create parent context if neccessary
+            try:
+                definition = self.prepare_run_definition(item)
+                self.progress_widget.update_step_status(
+                    core_constants.CONTEXT,
+                    item_widget.get_progress_label(item),
+                    core_constants.SUCCESS_STATUS,
+                    'Asset build validated',
+                    None,
+                    item[0],
                 )
-                definition = component_widget.definition
-                factory = component_widget.factory
+            except Exception as e:
+                # Log error and present in progress widget
+                self.logger.exception(e)
+                self.progress_widget.update_step_status(
+                    core_constants.CONTEXT,
+                    item_widget.get_progress_label(item),
+                    core_constants.ERROR_STATUS,
+                    str(e),
+                    traceback.format_exc(),
+                    item[0],
+                )
+                failed += 1
+            else:
+                factory = item_widget.factory
                 factory.listen_widget_updates()
 
                 engine_type = definition['_config']['engine_type']
                 try:
-                    # Set method to importer plugins
-                    if method:
-                        for plugin in definition.get_all(
-                            category=core_constants.PLUGIN,
-                            type=core_constants.plugin._PLUGIN_IMPORTER_TYPE,
-                        ):
-                            plugin['default_method'] = method
                     self.run_definition(definition, engine_type)
                     # Did it go well?
                     if factory.has_error:
                         failed += 1
                 finally:
-                    component_widget.factory.end_widget_updates()
+                    item_widget.factory.end_widget_updates()
 
-            succeeded = len(component_widgets) - failed
-            if succeeded > 0:
-                if failed == 0:
-                    self.progress_widget.set_status(
-                        core_constants.SUCCESS_STATUS,
-                        'Successfully {} {}/{} asset{}!'.format(
-                            'loaded'
-                            if method == 'init_and_load'
-                            else 'tracked',
-                            succeeded,
-                            len(component_widgets),
-                            's' if len(component_widgets) > 1 else '',
-                        ),
-                    )
-                else:
-                    self.progress_widget.set_status(
-                        core_constants.WARNING_STATUS,
-                        'Successfully {} {}/{} asset{}, {} failed - check logs for more information!'.format(
-                            'loaded'
-                            if method == 'init_and_load'
-                            else 'tracked',
-                            succeeded,
-                            len(component_widgets),
-                            's' if len(component_widgets) > 1 else '',
-                            failed,
-                        ),
-                    )
-                self.asset_manager.asset_manager_widget.rebuild.emit()
-            else:
+        succeeded = len(item_widgets) - failed
+        if succeeded > 0:
+            if failed == 0:
                 self.progress_widget.set_status(
-                    core_constants.ERROR_STATUS,
-                    'Could not {} asset{} - check logs for more information!'.format(
-                        'load' if method == 'init_and_load' else 'tracked',
-                        's' if len(component_widgets) > 1 else '',
+                    core_constants.SUCCESS_STATUS,
+                    'Successfully published {}/{} asset{}!'.format(
+                        succeeded,
+                        len(item_widgets),
+                        's' if len(item_widgets) > 1 else '',
                     ),
                 )
+            else:
+                self.progress_widget.set_status(
+                    core_constants.WARNING_STATUS,
+                    'Successfully published {}/{} asset{}, {} failed - check logs for more information!'.format(
+                        succeeded,
+                        len(item_widgets),
+                        's' if len(item_widgets) > 1 else '',
+                        failed,
+                    ),
+                )
+            self.asset_manager.asset_manager_widget.rebuild.emit()
+        else:
+            self.progress_widget.set_status(
+                core_constants.ERROR_STATUS,
+                'Could not publish asset{} - check logs for more information!'.format(
+                    's' if len(item_widgets) > 1 else '',
+                ),
+            )
 
     def refresh(self):
         pass

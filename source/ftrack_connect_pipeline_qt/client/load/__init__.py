@@ -168,6 +168,8 @@ class QtAssemblerClientWidget(QtLoaderClient, dialog.Dialog):
         self.definition_selector = (
             definition_selector.BatchDefinitionSelector()
         )
+        self.definition_selector.definition_widget.setVisible(False)
+        self.definition_selector.label_widget.setVisible(False)
         self.definition_selector.refreshed.connect(partial(self.refresh, True))
         self._left_widget.layout().addWidget(self.definition_selector)
 
@@ -277,7 +279,7 @@ class QtAssemblerClientWidget(QtLoaderClient, dialog.Dialog):
     def on_host_changed(self, host_connection):
         '''Triggered when client has set host connection'''
         if self.definition_filters:
-            self.definition_selector.definition_title_filters = (
+            self.definition_selector.definition_filters = (
                 self.definition_filters
             )
         if self.definition_extensions_filter:

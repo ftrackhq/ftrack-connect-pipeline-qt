@@ -60,6 +60,16 @@ class ContextSelector(QtWidgets.QFrame):
         )
         thread.start()
 
+    @property
+    def browse_context_id(self):
+        '''Return the browse context id'''
+        return self._browse_context_id
+
+    @browse_context_id.setter
+    def browse_context_id(self, value):
+        '''Set the initial browse context id'''
+        self._browse_context_id = value
+
     def __init__(
         self,
         session,

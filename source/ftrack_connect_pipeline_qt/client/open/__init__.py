@@ -183,7 +183,7 @@ class QtOpenerClientWidget(QtOpenerClient, dialog.Dialog):
         '''Triggered when client has set host connection'''
 
         if self.definition_filters:
-            self.definition_selector.definition_title_filters = (
+            self.definition_selector.definition_filters = (
                 self.definition_filters
             )
         if self.definition_extensions_filter:

@@ -231,8 +231,8 @@ class ProgressWidgetObject(BaseUIWidgetObject):
         )
         self.content_widget.layout().addWidget(self.status_banner)
 
-    def add_step(self, step_type, step_name, version_id=None, label=None):
-        id_name = "{}.{}.{}".format(version_id or '-', step_type, step_name)
+    def add_step(self, step_type, step_name, batch_id=None, label=None):
+        id_name = "{}.{}.{}".format(batch_id or '-', step_type, step_name)
         step_button = PhaseButton(label or step_name, "Not started")
         self._step_widgets[id_name] = step_button
         if step_type not in self.step_types:
@@ -262,17 +262,17 @@ class ProgressWidgetObject(BaseUIWidgetObject):
         self.widget.setVisible(visibility)
 
     def update_step_status(
-        self, step_type, step_name, status, status_message, results, version_id
+        self, step_type, step_name, status, status_message, results, batch_id
     ):
         '''Update the status of the progress of a step/component'''
-        id_name = "{}.{}.{}".format(version_id or '-', step_type, step_name)
+        id_name = "{}.{}.{}".format(batch_id or '-', step_type, step_name)
         if id_name in self._step_widgets:
             self._step_widgets[id_name].update_status(
                 status, status_message, results
             )
             if status != self.widget.get_status():
                 main_status_message = '{}{}.{}: {}'.format(
-                    ('{}.'.format(version_id)) if version_id else '',
+                    ('{}.'.format(batch_id)) if batch_id else '',
                     step_type,
                     step_name,
                     status_message,
@@ -311,3 +311,8 @@ class BatchProgressWidget(ProgressWidgetObject):
         )
         version_widget.setObjectName('h2')
         self.content_widget.layout().addWidget(version_widget)
+
+    def add_item(self, item):
+        item_widget = QtWidgets.QLabel(str(item))
+        item_widget.setObjectName('h2')
+        self.content_widget.layout().addWidget(item_widget)
