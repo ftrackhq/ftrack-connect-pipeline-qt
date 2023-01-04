@@ -62,7 +62,7 @@ class BatchPublisherWidgetFactory(WidgetFactoryBase):
 
         return main_widget
 
-    def build_progress_ui(self, item):
+    def build_progress_ui(self, item, item_id):
         '''Build only progress widget components, prepare to run.'''
         if not self.progress_widget:
             return
@@ -74,7 +74,7 @@ class BatchPublisherWidgetFactory(WidgetFactoryBase):
                     self.progress_widget.add_step(
                         step_type,
                         step_name,
-                        batch_id=item[0],
+                        batch_id=item_id,
                     )
             else:
                 for stage in step.get_all(category=core_constants.STAGE):
@@ -83,5 +83,5 @@ class BatchPublisherWidgetFactory(WidgetFactoryBase):
                         self.progress_widget.add_step(
                             step_type,
                             stage_name,
-                            batch_id=item[0],
+                            batch_id=item_id,
                         )

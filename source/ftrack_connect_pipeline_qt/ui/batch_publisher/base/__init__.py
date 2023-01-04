@@ -63,6 +63,7 @@ class BatchPublisherBaseWidget(QtWidgets.QWidget):
         self._items = items
         self._level = level
         self.item_list = None
+        self.total = self.failed = 0
         super(BatchPublisherBaseWidget, self).__init__(parent=parent)
         self.pre_build()
         self.build()
@@ -157,17 +158,15 @@ class BatchPublisherBaseWidget(QtWidgets.QWidget):
     def run(self, progress_widget, level=0):
         '''Run batch publish of checked items, at recursive *level*'''
         # Load batch of components, any selected
-        item_widgets = []
-        for item in self.item_list.checked(as_widgets=True):
-            item_widgets.append((item, str(uuid.uuid4())))
-        total = len(item_widgets)
-        if total == 0:
+        item_widgets = self.item_list.checked(as_widgets=True)
+        self.total = len(item_widgets)
+        if self.total == 0:
             return core_constants.SUCCESS_STATUS, 0, 0
 
         # Each item contains a definition ready to run and a factory,
         # run them one by one. Start by preparing progress widget
 
-        for item_widget, item_id in item_widgets:
+        for item_widget in item_widgets:
             item = self.item_list.model.data(item_widget.index)[0]
             factory = item_widget.factory
             factory.progress_widget = (
@@ -177,15 +176,15 @@ class BatchPublisherBaseWidget(QtWidgets.QWidget):
             progress_widget.add_step(
                 core_constants.CONTEXT,
                 item_widget.get_progress_label(),
-                batch_id=item_id,
+                batch_id=item_widget.item_id,
                 indent=10 * level,
             )
-            factory.build_progress_ui(item)
+            factory.build_progress_ui(item, item_widget.item_id)
         progress_widget.components_added()
 
         progress_widget.show_widget()
-        failed = 0
-        for item_widget, item_id in item_widgets:
+        self.failed = 0
+        for item_widget in item_widgets:
             # Prepare progress widget
             item = self.item_list.model.data(item_widget.index)
             progress_widget.set_status(
@@ -201,7 +200,7 @@ class BatchPublisherBaseWidget(QtWidgets.QWidget):
                     core_constants.SUCCESS_STATUS,
                     'Ensured asset parent context',
                     {},
-                    item_id,
+                    item_widget.item_id,
                 )
             except Exception as e:
                 # Log error and present in progress widget
@@ -213,9 +212,9 @@ class BatchPublisherBaseWidget(QtWidgets.QWidget):
                     core_constants.ERROR_STATUS,
                     traceback.format_exc(),
                     {},
-                    item_id,
+                    item_widget.item_id,
                 )
-                failed += 1
+                self.failed += 1
             else:
                 factory = item_widget.factory
                 factory.listen_widget_updates()
@@ -223,24 +222,38 @@ class BatchPublisherBaseWidget(QtWidgets.QWidget):
                 engine_type = definition['_config']['engine_type']
                 try:
                     self.client.set_run_callback_function(
-                        partial(self._post_run_definition, item_widget, item)
+                        partial(
+                            self._post_run_definition,
+                            item_widget,
+                            item,
+                            progress_widget,
+                        )
                     )
                     self.client.run_definition(definition, engine_type)
                     # Did it go well?
                     if factory.has_error:
-                        failed += 1
+                        self.failed += 1
+                    # Collect totals and failed
+                    dependencies_batch_publisher_widget = (
+                        item_widget.dependencies_batch_publisher_widget
+                    )
+                    if dependencies_batch_publisher_widget:
+                        self.total += dependencies_batch_publisher_widget.total
+                        self.failed += (
+                            dependencies_batch_publisher_widget.failed
+                        )
                 finally:
                     self.client.set_run_callback_function(None)
                     item_widget.factory.end_widget_updates()
         return (
             core_constants.SUCCESS_STATUS
-            if total > failed
+            if self.total > self.failed
             else core_constants.ERROR_STATUS,
-            total,
-            failed,
+            self.total,
+            self.failed,
         )
 
-    def _post_run_definition(self, event, item_widget, item):
+    def _post_run_definition(self, event, item_widget, item, progress_widget):
         '''Executed after an item has been publisher, enable publish sub dependencies.'''
         pass
 
@@ -355,6 +368,10 @@ class ItemBaseWidget(AccordionBaseWidget):
         '''The recursive level of parent batch publisher widget.'''
         return self.batch_publisher_widget.level
 
+    @property
+    def item_id(self):
+        return self._item_id
+
     def __init__(
         self,
         index,
@@ -372,6 +389,7 @@ class ItemBaseWidget(AccordionBaseWidget):
         :param parent: the parent dialog or frame
         '''
         self._batch_publisher_widget = batch_publisher_widget
+        self._item_id = str(uuid.uuid4())
         super(ItemBaseWidget, self).__init__(
             AccordionBaseWidget.SELECT_MODE_LIST,
             AccordionBaseWidget.CHECK_MODE_CHECKBOX,

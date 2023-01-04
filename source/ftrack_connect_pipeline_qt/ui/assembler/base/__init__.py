@@ -739,7 +739,7 @@ class ComponentBaseWidget(AccordionBaseWidget):
         self._component_id = component['id']
         self._component_name = component['name']
         self.thumbnail_widget.load(version_entity['id'])
-        self._widget_factory.version_id = version_entity['id']
+        self._widget_factory.batch_id = version_entity['id']
 
         self._status_widget.set_status(version_entity['status'])
 
