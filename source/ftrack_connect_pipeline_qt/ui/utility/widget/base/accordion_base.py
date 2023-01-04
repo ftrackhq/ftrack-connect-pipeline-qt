@@ -12,10 +12,15 @@ from ftrack_connect_pipeline_qt.utils import set_property
 
 
 class AccordionBaseWidget(QtWidgets.QFrame):
-    '''An utility accordion widget providing a header which can be expanded to show content'''
+    '''A utility accordion widget providing a header which can be expanded to show content'''
 
-    clicked = QtCore.Signal(object)
-    doubleClicked = QtCore.Signal(object)
+    clicked = QtCore.Signal(object)  # Emitted when accordion is clicked
+    doubleClicked = QtCore.Signal(
+        object
+    )  # Emitted when accordion is double clicked
+    checkedStateChanged = QtCore.Signal(
+        object
+    )  # Emitted when checked state changed
 
     SELECT_MODE_NONE = -1  # Not selectable
     SELECT_MODE_LIST = 0  # Only list selection mode
@@ -87,10 +92,16 @@ class AccordionBaseWidget(QtWidgets.QFrame):
 
     @checked.setter
     def checked(self, value):
-        '''Set the checkd property'''
+        '''Set the checked property'''
+        prev_checked = self._checked
         self._checked = value
-        if self.check_mode == self.CHECK_MODE_CHECKBOX:
-            self.header.checkbox.setChecked(value)
+        if self.header:
+            if self.check_mode == self.CHECK_MODE_CHECKBOX:
+                self.header.checkbox.setChecked(value)
+            self.header.title_label.setEnabled(self._checked)
+        self.enable_content()
+        if self._checked != prev_checked:
+            self.checkedStateChanged.emit(self)
 
     @property
     def header(self):
@@ -208,12 +219,12 @@ class AccordionBaseWidget(QtWidgets.QFrame):
     def _init_content(self):
         '''Initialize the content'''
         self._content = QtWidgets.QFrame()
-        self._content.setLayout(QtWidgets.QVBoxLayout())
+        self.content.setLayout(QtWidgets.QVBoxLayout())
 
-        self._content.layout().setContentsMargins(2, 2, 2, 2)
-        self._content.layout().setSpacing(0)
+        self.content.layout().setContentsMargins(2, 2, 2, 2)
+        self.content.layout().setSpacing(0)
 
-        self.init_content(self._content.layout())
+        self.init_content(self.content.layout())
 
         return self._content
 
@@ -239,9 +250,21 @@ class AccordionBaseWidget(QtWidgets.QFrame):
             self.update_accordion()
         return retval
 
+    def set_checked(self, checked):
+        '''Set checked property to *checked*, returns True is state changed'''
+        retval = False
+        if self.isEnabled():
+            if self._checked != checked:
+                retval = True
+            self._checked = checked
+            if self.header and self.header.checkbox:
+                self.header.checkbox.setChecked(checked)
+        return retval
+
     def enable_content(self):
         '''Enable content widget depending on if accordion is checked or not'''
-        self._content.setEnabled(self.checked)
+        if self._content:
+            self._content.setEnabled(self.checked)
 
     def paint_title(self, color):
         '''Put a foreground *color* on header title label'''
@@ -259,9 +282,7 @@ class AccordionBaseWidget(QtWidgets.QFrame):
 
     def _on_header_checkbox_checked(self):
         '''Callback on enable checkbox user interaction'''
-        self._checked = self.header.checkbox.isChecked()
-        self.header.title_label.setEnabled(self._checked)
-        self.enable_content()
+        self.checked = self.header.checkbox.isChecked()
 
     def _on_header_clicked(self, event):
         '''Callback on header user click'''

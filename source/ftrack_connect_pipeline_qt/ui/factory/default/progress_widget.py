@@ -174,6 +174,8 @@ class StatusButtonWidget(QtWidgets.QPushButton):
 class ProgressWidgetObject(BaseUIWidgetObject):
     '''Widget representation of the progress widget used during schema run'''
 
+    MARGINS = 15
+
     _step_widgets = {}
 
     def __init__(
@@ -200,7 +202,9 @@ class ProgressWidgetObject(BaseUIWidgetObject):
         self.content_widget = QtWidgets.QFrame()
         self.content_widget.setObjectName('overlay')
         self.content_widget.setLayout(QtWidgets.QVBoxLayout())
-        self.content_widget.layout().setContentsMargins(15, 15, 15, 15)
+        self.content_widget.layout().setContentsMargins(
+            self.MARGINS, self.MARGINS, self.MARGINS, self.MARGINS
+        )
 
         self.scroll.setWidget(self.content_widget)
 
@@ -231,10 +235,15 @@ class ProgressWidgetObject(BaseUIWidgetObject):
         )
         self.content_widget.layout().addWidget(self.status_banner)
 
-    def add_step(self, step_type, step_name, batch_id=None, label=None):
+    def add_step(
+        self, step_type, step_name, batch_id=None, label=None, indent=0
+    ):
         id_name = "{}.{}.{}".format(batch_id or '-', step_type, step_name)
         step_button = PhaseButton(label or step_name, "Not started")
         self._step_widgets[id_name] = step_button
+        self.content_widget.layout().setContentsMargins(
+            self.MARGINS + indent, self.MARGINS, self.MARGINS, self.MARGINS
+        )
         if step_type not in self.step_types:
             self.step_types.append(step_type)
             step_title = QtWidgets.QLabel(step_type.upper())

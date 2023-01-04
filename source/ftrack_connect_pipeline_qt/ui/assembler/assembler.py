@@ -644,10 +644,7 @@ class DependenciesListWidget(AssemblerListBaseWidget):
             component_widget.set_component_and_definitions(
                 component, definitions
             )
-            self.layout().addWidget(component_widget)
-            component_widget.clicked.connect(
-                partial(self.asset_clicked, component_widget)
-            )
+            self.add_widget(component_widget)
 
         self.layout().addWidget(QtWidgets.QLabel(), 1000)
         self.refreshed.emit()
@@ -724,9 +721,8 @@ class BrowserListWidget(AssemblerListBaseWidget):
 
         component_widget.set_component_and_definitions(component, definitions)
 
-        component_widget.clicked.connect(
-            partial(self.asset_clicked, component_widget)
-        )
+        self.setup_widget(component_widget)
+
         component_widget.versionChanged.connect(
             partial(self._on_version_change, component_widget)
         )

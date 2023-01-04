@@ -1,12 +1,18 @@
 # :coding: utf-8
 # :copyright: Copyright (c) 2014-2022 ftrack
+import traceback
+import uuid
+from functools import partial
 
 from Qt import QtCore, QtWidgets
+
+from ftrack_connect_pipeline import constants as core_constants
 
 from ftrack_connect_pipeline_qt.ui.utility.widget import (
     icon,
     overlay,
     scroll_area,
+    dialog,
 )
 from ftrack_connect_pipeline_qt.ui.utility.widget.button import OptionsButton
 
@@ -36,11 +42,27 @@ class BatchPublisherBaseWidget(QtWidgets.QWidget):
         return self._client
 
     @property
+    def items(self):
+        return self._items
+
+    @property
+    def level(self):
+        '''The recursive level of this batch publisher widget.'''
+        return self._level
+
+    @property
     def session(self):
         return self._client.session
 
-    def __init__(self, client, parent=None):
+    @property
+    def logger(self):
+        return self._client.logger
+
+    def __init__(self, client, items, level=0, parent=None):
         self._client = client
+        self._items = items
+        self._level = level
+        self.item_list = None
         super(BatchPublisherBaseWidget, self).__init__(parent=parent)
         self.pre_build()
         self.build()
@@ -64,12 +86,16 @@ class BatchPublisherBaseWidget(QtWidgets.QWidget):
         self._label_info.setObjectName('gray')
         self.layout().addWidget(self._label_info)
 
-        self.scroll = scroll_area.ScrollArea()
-        self.scroll.setWidgetResizable(True)
-        self.scroll.setHorizontalScrollBarPolicy(QtCore.Qt.ScrollBarAlwaysOff)
-        self.scroll.setStyle(QtWidgets.QStyleFactory.create("plastique"))
+        self.scroll = None
+        if self.level == 0:
+            self.scroll = scroll_area.ScrollArea()
+            self.scroll.setWidgetResizable(True)
+            self.scroll.setHorizontalScrollBarPolicy(
+                QtCore.Qt.ScrollBarAlwaysOff
+            )
+            self.scroll.setStyle(QtWidgets.QStyleFactory.create("plastique"))
 
-        self.layout().addWidget(self.scroll, 1000)
+            self.layout().addWidget(self.scroll, 1000)
 
     def post_build(self):
         '''Build widget.'''
@@ -79,27 +105,153 @@ class BatchPublisherBaseWidget(QtWidgets.QWidget):
         '''Handle context change, should be overridden'''
         pass
 
-    def set_items(self, items, item_widget_class):
+    def build_items(self, definition):
+        '''Build model data, DCC specific'''
+        raise NotImplementedError()
+
+    def set_items(self, items, item_list_widget_class):
         '''Create and deploy list of publishable *items* using *item_widget_class*'''
+
         # Create component list
-        self.item_list = item_widget_class(self)
+        self.item_list = item_list_widget_class(self)
         self.listWidgetCreated.emit(self.item_list)
 
-        self.scroll.setWidget(self.item_list)
+        if self.scroll:
+            self.scroll.setWidget(self.item_list)
+        else:
+            self.layout().addWidget(self.item_list, 1000)
 
         # Will trigger list to be rebuilt.
+
         self.model.insertRows(0, items)
 
-        self._label_info.setText(
-            'Listing {} asset{}'.format(
-                self.model.rowCount(),
-                's' if self.model.rowCount() > 1 else '',
+        self.item_list.selectionUpdated.connect(self._item_selection_updated)
+        # Have client reflect upon checked items
+        self.item_list.checkedUpdated.connect(self.client.refresh)
+
+        if self.level == 0:
+            self._label_info.setText(
+                'Listing {} {}'.format(
+                    self.model.rowCount(),
+                    'assets' if self.model.rowCount() > 1 else 'asset',
+                )
             )
+        else:
+            self._label_info.setText(
+                '{} {}'.format(
+                    self.model.rowCount(),
+                    'dependencies'
+                    if self.model.rowCount() > 1
+                    else 'dependency',
+                )
+            )
+
+    def _item_selection_updated(self, selection):
+        '''Handle selection update.'''
+        pass
+
+    def prepare_run_definition(self, definition, asset_path):
+        '''Should be imlemented by child.'''
+        raise NotImplementedError()
+
+    def run(self, progress_widget, level=0):
+        '''Run batch publish of checked items, at recursive *level*'''
+        # Load batch of components, any selected
+        item_widgets = []
+        for item in self.item_list.checked(as_widgets=True):
+            item_widgets.append((item, str(uuid.uuid4())))
+        total = len(item_widgets)
+        if total == 0:
+            return core_constants.SUCCESS_STATUS, 0, 0
+
+        # Each item contains a definition ready to run and a factory,
+        # run them one by one. Start by preparing progress widget
+
+        for item_widget, item_id in item_widgets:
+            item = self.item_list.model.data(item_widget.index)[0]
+            factory = item_widget.factory
+            factory.progress_widget = (
+                progress_widget  # Have factory update main progress widget
+            )
+            progress_widget.add_item(item)
+            progress_widget.add_step(
+                core_constants.CONTEXT,
+                item_widget.get_progress_label(),
+                batch_id=item_id,
+                indent=10 * level,
+            )
+            factory.build_progress_ui(item)
+        progress_widget.components_added()
+
+        progress_widget.show_widget()
+        failed = 0
+        for item_widget, item_id in item_widgets:
+            # Prepare progress widget
+            item = self.item_list.model.data(item_widget.index)
+            progress_widget.set_status(
+                core_constants.RUNNING_STATUS,
+                'Publishing "{}"...'.format(item_widget.get_progress_label()),
+            )
+            # Prepare batch publish definition, create parent context if neccessary
+            try:
+                definition = self.prepare_run_definition(item)
+                progress_widget.update_step_status(
+                    core_constants.CONTEXT,
+                    item_widget.get_progress_label(),
+                    core_constants.SUCCESS_STATUS,
+                    'Ensured asset parent context',
+                    {},
+                    item_id,
+                )
+            except Exception as e:
+                # Log error and present in progress widget
+                print(traceback.format_exc())
+                self.logger.exception(e)
+                progress_widget.update_step_status(
+                    core_constants.CONTEXT,
+                    item_widget.get_progress_label(),
+                    core_constants.ERROR_STATUS,
+                    traceback.format_exc(),
+                    {},
+                    item_id,
+                )
+                failed += 1
+            else:
+                factory = item_widget.factory
+                factory.listen_widget_updates()
+
+                engine_type = definition['_config']['engine_type']
+                try:
+                    self.client.set_run_callback_function(
+                        partial(self._post_run_definition, item_widget, item)
+                    )
+                    self.client.run_definition(definition, engine_type)
+                    # Did it go well?
+                    if factory.has_error:
+                        failed += 1
+                finally:
+                    self.client.set_run_callback_function(None)
+                    item_widget.factory.end_widget_updates()
+        return (
+            core_constants.SUCCESS_STATUS
+            if total > failed
+            else core_constants.ERROR_STATUS,
+            total,
+            failed,
         )
+
+    def _post_run_definition(self, event, item_widget, item):
+        '''Executed after an item has been publisher, enable publish sub dependencies.'''
+        pass
 
 
 class BatchPublisherListBaseWidget(AssetListWidget):
     '''Base for item lists within the batch publisher'''
+
+    @property
+    def level(self):
+        '''Return the recursive level of this widget'''
+        return self._batch_publisher_widget.level
 
     def __init__(self, batch_publisher_widget, parent=None):
         self._batch_publisher_widget = batch_publisher_widget
@@ -193,8 +345,23 @@ class ItemBaseWidget(AccordionBaseWidget):
     def session(self):
         return self._batch_publisher_widget.session
 
+    @property
+    def batch_publisher_widget(self):
+        '''Return the parent batch publisher widget'''
+        return self._batch_publisher_widget
+
+    @property
+    def level(self):
+        '''The recursive level of parent batch publisher widget.'''
+        return self.batch_publisher_widget.level
+
     def __init__(
-        self, index, batch_publisher_widget, event_manager, parent=None
+        self,
+        index,
+        batch_publisher_widget,
+        event_manager,
+        collapsable=False,
+        parent=None,
     ):
         '''
         Instantiate the asset widget
@@ -210,7 +377,7 @@ class ItemBaseWidget(AccordionBaseWidget):
             AccordionBaseWidget.CHECK_MODE_CHECKBOX,
             event_manager=event_manager,
             checked=False,
-            collapsable=False,
+            collapsable=collapsable,
             parent=parent,
         )
         self.index = index
@@ -233,7 +400,7 @@ class ItemBaseWidget(AccordionBaseWidget):
         '''Widget containing visual context feedback on the item - e.g. were item will be published'''
         raise NotImplementedError()
 
-    def get_progress_label(self, item):
+    def get_progress_label(self):
         '''Return the label to use for progress widget, from *item*'''
         raise NotImplementedError()
 
@@ -301,13 +468,11 @@ class ItemBaseWidget(AccordionBaseWidget):
         updated_definition = self._widget_factory.to_json_object()
 
         self._widget_factory.set_definition(updated_definition)
-        # Transfer back load mode
-        self._set_default_mode()
         # Clear out overlay, not needed anymore
         clear_layout(self.options_widget.main_widget.layout())
 
     def init_content(self, content_layout):
-        '''No content in this accordion for now'''
+        '''No content in this accordion for now, should be implemented by DCC specific item widget'''
         pass
 
     def set_data(self, definition):
@@ -326,13 +491,16 @@ class ItemBaseWidget(AccordionBaseWidget):
 
     def _adjust_height(self):
         '''Align the height with warning label'''
-        widget_height = self.get_height() + (
-            18 if len(self.info_message) > 0 else 0
-        )
-        self.header.setMinimumHeight(widget_height)
-        self.header.setMaximumHeight(widget_height)
-        self.setMinimumHeight(widget_height)
-        self.setMaximumHeight(widget_height)
+        # widget_height = self.get_height() + (
+        #     18 if len(self.info_message) > 0 else 0
+        # )
+        # self.header.setMinimumHeight(widget_height)
+        # self.header.setMaximumHeight(widget_height)
+        # self.setMinimumHeight(widget_height)
+        # self.setMaximumHeight(widget_height)
+
+    def update_item(self, project_context_id):
+        raise NotImplementedError()
 
 
 class PublisherOptionsButton(OptionsButton):

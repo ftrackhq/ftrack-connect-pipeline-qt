@@ -12,8 +12,6 @@ from ftrack_connect_pipeline.constants import asset as asset_const
 class AssetListModel(QtCore.QAbstractTableModel):
     '''Custom asset list model holding asset info data'''
 
-    __asset_entities_list = []  # Model data storage
-
     @property
     def event_manager(self):
         '''Return :class:`~ftrack_connect_pipeline.event.EventManager` instance'''
@@ -33,6 +31,7 @@ class AssetListModel(QtCore.QAbstractTableModel):
         self.logger = logging.getLogger(
             __name__ + '.' + self.__class__.__name__
         )
+        self.__asset_entities_list = []  # Model data storage
         super(AssetListModel, self).__init__()
         self._event_manager = event_manager
 
@@ -60,6 +59,9 @@ class AssetListModel(QtCore.QAbstractTableModel):
     def items(self):
         '''Return raw data'''
         return self.__asset_entities_list
+
+    def items_id(self):
+        return id(self.__asset_entities_list)
 
     def insertRows(self, row, data, index=None):
         '''Insert *data* at *index* (or *row* if no index defined)'''

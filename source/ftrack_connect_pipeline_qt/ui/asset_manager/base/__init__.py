@@ -1,9 +1,10 @@
 # :coding: utf-8
 # :copyright: Copyright (c) 2014-2020 ftrack
 import platform
+from functools import partial
+import shiboken2
 
 from Qt import QtWidgets, QtCore
-import shiboken2
 
 from ftrack_connect_pipeline_qt.ui.utility.widget.search import Search
 from ftrack_connect_pipeline_qt.ui.utility.widget.base.accordion_base import (
@@ -107,6 +108,10 @@ class AssetListWidget(QtWidgets.QWidget):
         object
     )  # Emitted when selection has been updated
 
+    checkedUpdated = QtCore.Signal(
+        object
+    )  # Emitted when checked state has been updated
+
     refreshed = QtCore.Signal()  # Should be emitted when list has been rebuilt
 
     @property
@@ -152,10 +157,25 @@ class AssetListWidget(QtWidgets.QWidget):
         raise NotImplementedError()
 
     def selection(self, as_widgets=False):
-        '''Return list of mode data or asset widgets if *as_widgets* is True'''
+        '''Return list of selected model data or asset widgets if *as_widgets* is True'''
         result = []
         for widget in self.assets:
             if widget.selected:
+                if as_widgets:
+                    result.append(widget)
+                else:
+                    data = self.model.data(widget.index)
+                    if data is None:
+                        # Data has changed
+                        return None
+                    result.append(data)
+        return result
+
+    def checked(self, as_widgets=False):
+        '''Return list of checked model data or asset widgets if *as_widgets* is True'''
+        result = []
+        for widget in self.assets:
+            if widget.checked:
                 if as_widgets:
                     result.append(widget)
                 else:
@@ -220,6 +240,18 @@ class AssetListWidget(QtWidgets.QWidget):
             selection = self.selection()
             if selection is not None:
                 self.selectionUpdated.emit(selection)
+
+    def asset_checked(self, asset_widget):
+        print('@@@ asset_checked: ', asset_widget)
+        self.checkedUpdated.emit(self.checked())
+
+    def add_widget(self, widget):
+        self.layout().addWidget(widget)
+        self.setup_widget(widget)
+
+    def setup_widget(self, widget):
+        widget.clicked.connect(partial(self.asset_clicked, widget))
+        widget.checkedStateChanged.connect(self.asset_checked)
 
     def get_widget(self, index):
         '''Return the asset widget representation at *index*'''

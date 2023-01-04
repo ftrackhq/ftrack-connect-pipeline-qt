@@ -39,9 +39,15 @@ class QtBatchPublisherClientWidget(QtPublisherClient, dialog.Dialog):
     contextChanged = QtCore.Signal(object)  # Context has changed
     definitionsPopulated = QtCore.Signal(object)
 
+    @property
+    def items(self):
+        '''Return list of supplied initial items to publish'''
+        return self._items
+
     def __init__(
         self,
         event_manager,
+        items,
         title=None,
         immediate_run=False,
         parent=None,
@@ -57,8 +63,9 @@ class QtBatchPublisherClientWidget(QtPublisherClient, dialog.Dialog):
         '''
         dialog.Dialog.__init__(self, parent=parent)
         QtPublisherClient.__init__(self, event_manager)
+        self._items = items
         self._immediate_run = immediate_run
-
+        self.reset_processed_items()
         self.logger.debug('start batch publisher')
 
         set_theme(self, get_theme())
@@ -81,6 +88,16 @@ class QtBatchPublisherClientWidget(QtPublisherClient, dialog.Dialog):
 
     def is_docked(self):
         return False
+
+    def reset_processed_items(self):
+        '''Keep track of processed items to prevent duplicates and cycles'''
+        self._processed_items = []
+
+    def check_add_processed_items(self, item):
+        if item in self._processed_items:
+            return False
+        self._processed_items.append(item)
+        return True
 
     # Build
 
@@ -114,7 +131,6 @@ class QtBatchPublisherClientWidget(QtPublisherClient, dialog.Dialog):
         self.layout().addWidget(self.context_selector, QtCore.Qt.AlignTop)
 
         self.definition_selector = self._build_definition_selector()
-        self.definition_selector.refreshed.connect(partial(self.refresh, True))
         self.layout().addWidget(self.definition_selector)
 
         self.batch_publisher_widget = self._build_batch_publisher_widget()
@@ -188,11 +204,9 @@ class QtBatchPublisherClientWidget(QtPublisherClient, dialog.Dialog):
             definition, schema=schema
         )
         # We have a definition selection, build model data - items
-        items = self._build_items(definition)
-        # Store and present
-        self.batch_publisher_widget.set_items(
-            items, self._get_list_widget_class()
-        )
+        self.reset_processed_items()
+        self.batch_publisher_widget.build_items(definition)
+        self.reset_processed_items()  # Clear out data
 
     # Use
 
@@ -225,104 +239,32 @@ class QtBatchPublisherClientWidget(QtPublisherClient, dialog.Dialog):
     def _get_list_widget_class(self):
         raise NotImplementedError()
 
-    def _build_items(self, definition):
-        raise NotImplementedError()
-
-    def prepare_run_definition(self, definition, asset_path):
-        '''Should be overridden by child.'''
-        raise NotImplementedError()
-
     def run(self):
         '''Function called when the run button is clicked.'''
-        # Load batch of components, any selected
-        item_widgets = self.batch_publisher_widget.item_list.selection(
-            as_widgets=True
+        self.progress_widget.prepare_add_steps()
+        self.progress_widget.set_status(
+            core_constants.RUNNING_STATUS, 'Initializing...'
         )
-        if len(item_widgets) == 0:
+
+        status, total, failed = self.batch_publisher_widget.run(
+            self.progress_widget
+        )
+        if total == 0:
             dialog.ModalDialog(
                 self,
                 message='Please select at least one item to publish!'.format(),
             )
             return
-        # Each item contains a definition ready to run and a factory,
-        # run them one by one. Start by preparing progress widget
-        self.progress_widget.prepare_add_steps()
-        self.progress_widget.set_status(
-            core_constants.RUNNING_STATUS, 'Initializing...'
-        )
-        for item_widget in item_widgets:
-            item = self.batch_publisher_widget.item_list.model.data(
-                item_widget.index
-            )[0]
-            factory = item_widget.factory
-            factory.progress_widget = (
-                self.progress_widget
-            )  # Have factory update main progress widget
-            self.progress_widget.add_item(item)
-            self.progress_widget.add_step(
-                core_constants.CONTEXT,
-                item_widget.get_progress_label(item),
-                batch_id=item[0],
-            )
-            factory.build_progress_ui(item)
-        self.progress_widget.components_added()
 
-        self.progress_widget.show_widget()
-        failed = 0
-        for item_widget in item_widgets:
-            # Prepare progress widget
-            item = self.batch_publisher_widget.item_list.model.data(
-                item_widget.index
-            )[0]
-            self.progress_widget.set_status(
-                core_constants.RUNNING_STATUS,
-                'Publishing {}...'.format(item),
-            )
-            # Prepare batch publish definition, create parent context if neccessary
-            try:
-                definition = self.prepare_run_definition(item)
-                self.progress_widget.update_step_status(
-                    core_constants.CONTEXT,
-                    item_widget.get_progress_label(item),
-                    core_constants.SUCCESS_STATUS,
-                    'Asset build validated',
-                    None,
-                    item[0],
-                )
-            except Exception as e:
-                # Log error and present in progress widget
-                self.logger.exception(e)
-                self.progress_widget.update_step_status(
-                    core_constants.CONTEXT,
-                    item_widget.get_progress_label(item),
-                    core_constants.ERROR_STATUS,
-                    str(e),
-                    traceback.format_exc(),
-                    item[0],
-                )
-                failed += 1
-            else:
-                factory = item_widget.factory
-                factory.listen_widget_updates()
-
-                engine_type = definition['_config']['engine_type']
-                try:
-                    self.run_definition(definition, engine_type)
-                    # Did it go well?
-                    if factory.has_error:
-                        failed += 1
-                finally:
-                    item_widget.factory.end_widget_updates()
-
-        succeeded = len(item_widgets) - failed
+        succeeded = total - failed
         if succeeded > 0:
             if failed == 0:
                 self.progress_widget.set_status(
                     core_constants.SUCCESS_STATUS,
                     'Successfully published {}/{} asset{}!'.format(
                         succeeded,
-                        len(item_widgets),
-                        's' if len(item_widgets) > 1 else '',
+                        total,
+                        's' if total > 1 else '',
                     ),
                 )
             else:
@@ -330,22 +272,27 @@ class QtBatchPublisherClientWidget(QtPublisherClient, dialog.Dialog):
                     core_constants.WARNING_STATUS,
                     'Successfully published {}/{} asset{}, {} failed - check logs for more information!'.format(
                         succeeded,
-                        len(item_widgets),
-                        's' if len(item_widgets) > 1 else '',
+                        total,
+                        's' if total > 1 else '',
                         failed,
                     ),
                 )
-            self.asset_manager.asset_manager_widget.rebuild.emit()
         else:
             self.progress_widget.set_status(
                 core_constants.ERROR_STATUS,
                 'Could not publish asset{} - check logs for more information!'.format(
-                    's' if len(item_widgets) > 1 else '',
+                    's' if total > 1 else '',
                 ),
             )
 
-    def refresh(self):
-        pass
+    def refresh(self, checked_items):
+        self.run_button.setText(
+            'PUBLISH{}'.format(
+                '({})'.format(len(checked_items))
+                if len(checked_items) > 0
+                else ''
+            )
+        )
 
     def _launch_context_selector(self):
         '''Close client (if not docked) and open entity browser.'''
