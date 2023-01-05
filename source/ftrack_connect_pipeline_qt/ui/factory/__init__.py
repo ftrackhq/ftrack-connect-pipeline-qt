@@ -387,7 +387,7 @@ class WidgetFactoryBase(QtWidgets.QWidget):
 
         main_obj.widget.layout().addStretch()
 
-        self.progress_widget.components_added()
+        self.progress_widget.widgets_added()
 
         # Check all components status of the current UI
         self.post_build()

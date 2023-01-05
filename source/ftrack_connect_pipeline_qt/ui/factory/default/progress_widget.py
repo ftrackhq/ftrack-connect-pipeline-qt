@@ -3,9 +3,11 @@
 import shiboken2
 
 import ftrack_connect_pipeline_qt.ui.utility.widget.button
+
 from Qt import QtWidgets, QtCore, QtGui
 
 from ftrack_connect_pipeline import constants as core_constants
+from ftrack_connect_pipeline.utils import str_version
 
 from ftrack_connect_pipeline_qt.ui.factory.base import BaseUIWidgetObject
 from ftrack_connect_pipeline_qt.ui.utility.widget import (
@@ -18,7 +20,6 @@ from ftrack_connect_pipeline_qt.ui.utility.widget.icon import (
     MaterialIconWidget,
 )
 from ftrack_connect_pipeline_qt.utils import set_property
-from ftrack_connect_pipeline.utils import str_version
 
 
 class PhaseButton(QtWidgets.QPushButton):
@@ -228,6 +229,8 @@ class ProgressWidgetObject(BaseUIWidgetObject):
     def hide_widget(self):
         self.widget.setVisible(False)
 
+    # Thread safe entry points
+
     def prepare_add_steps(self):
         self.clear_components()
         self.status_banner = StatusButtonWidget(
@@ -242,7 +245,10 @@ class ProgressWidgetObject(BaseUIWidgetObject):
         step_button = PhaseButton(label or step_name, "Not started")
         self._step_widgets[id_name] = step_button
         self.content_widget.layout().setContentsMargins(
-            self.MARGINS + indent, self.MARGINS, self.MARGINS, self.MARGINS
+            self.MARGINS + indent * 10,
+            self.MARGINS,
+            self.MARGINS,
+            self.MARGINS,
         )
         if step_type not in self.step_types:
             self.step_types.append(step_type)
@@ -251,8 +257,11 @@ class ProgressWidgetObject(BaseUIWidgetObject):
             self.content_widget.layout().addWidget(step_title)
         self.content_widget.layout().addWidget(step_button)
 
-    def components_added(self):
+    def widgets_added(self, button=None):
+        '''All widgets have been added to the progress widget'''
         self.content_widget.layout().addWidget(QtWidgets.QLabel(), 10)
+        if button:
+            self.content_widget.layout().addWidget(button)
 
     def clear_components(self):
         for i in reversed(range(self.content_widget.layout().count())):

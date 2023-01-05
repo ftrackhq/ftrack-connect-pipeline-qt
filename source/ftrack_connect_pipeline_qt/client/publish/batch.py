@@ -2,6 +2,9 @@
 # :coding: utf-8
 # :copyright: Copyright (c) 2014-2022 ftrack
 import shiboken2
+import queue
+import time
+import threading
 import traceback
 from functools import partial
 
@@ -38,6 +41,9 @@ class QtBatchPublisherClientWidget(QtPublisherClient, dialog.Dialog):
 
     contextChanged = QtCore.Signal(object)  # Context has changed
     definitionsPopulated = QtCore.Signal(object)
+
+    runNextItem = QtCore.Signal()
+    runPost = QtCore.Signal()
 
     @property
     def items(self):
@@ -158,6 +164,9 @@ class QtBatchPublisherClientWidget(QtPublisherClient, dialog.Dialog):
         self.run_button.setFocus()
         self.run_button.clicked.connect(self.run)
 
+        self.runNextItem.connect(self.run_next_item)
+        self.runPost.connect(self.run_post)
+
     # Host
 
     def on_hosts_discovered(self, host_connections):
@@ -241,22 +250,100 @@ class QtBatchPublisherClientWidget(QtPublisherClient, dialog.Dialog):
 
     def run(self):
         '''Function called when the run button is clicked.'''
-        self.progress_widget.prepare_add_steps()
-        self.progress_widget.set_status(
-            core_constants.RUNNING_STATUS, 'Initializing...'
-        )
-
-        status, total, failed = self.batch_publisher_widget.run(
-            self.progress_widget
-        )
-        if total == 0:
+        # Check if anything to publish
+        if self.batch_publisher_widget.count() == 0:
             dialog.ModalDialog(
                 self,
                 message='Please select at least one item to publish!'.format(),
             )
             return
 
-        succeeded = total - failed
+        # Setup queue if items to publish
+        self.run_queue = queue.Queue()
+        # Queue with items to publish in background thread
+        self.run_queue_async = queue.Queue()
+
+        self._stop_run = False
+
+        # Spawn background thread
+        thread = threading.Thread(target=self._background_worker)
+        thread.start()
+
+        self.progress_widget.prepare_add_steps()
+        self.progress_widget.set_status(
+            core_constants.RUNNING_STATUS, 'Initializing...'
+        )
+
+        self.batch_publisher_widget.run()
+
+    def run_next_item(self):
+        '''Pull one item from the queue and run it'''
+        if self.run_queue.empty():
+            self.runPost.emit()
+            return
+
+        item_widget = self.run_queue.get()
+
+        item_widget.batch_publisher_widget.run_item(item_widget)
+
+    def _background_worker(self):
+        '''Background thread running a loop polling for items and their definition to run'''
+
+        while not self._stop_run:
+            # Get item to run
+            if self.run_queue_async.empty():
+                time.sleep(0.2)
+                continue
+
+            item_widget, definition = self.run_queue_async.get()
+
+            try:
+                factory = item_widget.factory
+                factory.listen_widget_updates()
+
+                self.set_run_callback_function(
+                    partial(
+                        item_widget.run_callback,
+                        item_widget,
+                    )
+                )
+
+                item_widget.finalizer_user_data = None
+
+                engine_type = definition['_config']['engine_type']
+
+                # Run the definition, status feedback will come in async but pushed to main thread by factory
+                self.run_definition(definition, engine_type)
+
+                # Did it go well?
+                if factory.has_error:
+                    item_widget.batch_publisher_widget.failed += 1
+
+            except Exception as e:
+                self.logger(traceback.format_exc())
+                item_widget.batch_publisher_widget.failed += 1
+
+            finally:
+                self.set_run_callback_function(None)
+                item_widget.factory.end_widget_updates()
+
+                # Run next item in queue
+                self.runNextItem.emit()
+
+    def run_abort(self):
+        '''Abort batch publisher - empty queue'''
+        if not self._stop_run:
+            if self.run_queue is not None:
+                self.run_queue.queue.clear()
+            self.logger.warning('Aborted batch publish')
+
+    def run_post(self):
+        '''All items has been published, post process'''
+
+        self._stop_run = True  # Halt background thread
+
+        total, succeeded, failed = self.batch_publisher_widget.run_post()
+
         if succeeded > 0:
             if failed == 0:
                 self.progress_widget.set_status(

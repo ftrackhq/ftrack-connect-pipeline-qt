@@ -62,7 +62,7 @@ class BatchPublisherWidgetFactory(WidgetFactoryBase):
 
         return main_widget
 
-    def build_progress_ui(self, item, item_id):
+    def build_progress_ui(self, item_id):
         '''Build only progress widget components, prepare to run.'''
         if not self.progress_widget:
             return

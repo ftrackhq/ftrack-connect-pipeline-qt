@@ -432,7 +432,7 @@ class QtAssemblerClientWidget(QtLoaderClient, dialog.Dialog):
                 )  # Have factory update main progress widget
                 self.progress_widget.add_version(component)
                 factory.build_progress_ui(component)
-            self.progress_widget.components_added()
+            self.progress_widget.widgets_added()
 
             self.progress_widget.show_widget()
             failed = 0

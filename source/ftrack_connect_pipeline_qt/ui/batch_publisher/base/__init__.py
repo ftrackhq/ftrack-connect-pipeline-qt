@@ -76,6 +76,7 @@ class BatchPublisherBaseWidget(QtWidgets.QWidget):
         self.layout().setSpacing(0)
         self.layout().setContentsMargins(0, 0, 0, 0)
 
+        # Create the data model, it will contain tuple of custom data with item data and definition being the first twp elements
         self.model = AssetListModel(self.client.event_manager)
 
     def build(self):
@@ -155,16 +156,26 @@ class BatchPublisherBaseWidget(QtWidgets.QWidget):
         '''Should be imlemented by child.'''
         raise NotImplementedError()
 
-    def run(self, progress_widget, level=0):
-        '''Run batch publish of checked items, at recursive *level*'''
+    def count(self):
+        '''Return amount publishable items (no recursion)'''
+        item_widgets = self.item_list.checked()
+        return len(item_widgets)
+
+    def run(self):
+        '''Prepare and run batch publish of checked items, called recursively'''
         # Load batch of components, any selected
         item_widgets = self.item_list.checked(as_widgets=True)
         self.total = len(item_widgets)
+        self.failed = 0
+        self.succeeded = 0
+
         if self.total == 0:
             return core_constants.SUCCESS_STATUS, 0, 0
 
+        progress_widget = self.client.progress_widget
+
         # Each item contains a definition ready to run and a factory,
-        # run them one by one. Start by preparing progress widget
+        # queue them up one by one. Start by preparing progress widget
 
         for item_widget in item_widgets:
             item = self.item_list.model.data(item_widget.index)[0]
@@ -177,85 +188,97 @@ class BatchPublisherBaseWidget(QtWidgets.QWidget):
                 core_constants.CONTEXT,
                 item_widget.get_progress_label(),
                 batch_id=item_widget.item_id,
-                indent=10 * level,
+                indent=10 * self.level,
             )
-            factory.build_progress_ui(item, item_widget.item_id)
-        progress_widget.components_added()
+            factory.build_progress_ui(item_widget.item_id)
+
+            self.client.run_queue.put(item_widget)
+
+            # Recursively add dependencies to progress widget and queue up
+            if item_widget.dependencies_batch_publisher_widget is not None:
+                item_widget.dependencies_batch_publisher_widget.run()
+
+        if self.level > 0:
+            return
+
+        # Add cancel button wo widget
+        self._abort_button = AbortButton('Abort')
+        self._abort_button.clicked.connect(self.client.run_abort)
+        progress_widget.widgets_added(self._abort_button)
 
         progress_widget.show_widget()
-        self.failed = 0
-        for item_widget in item_widgets:
-            # Prepare progress widget
-            item = self.item_list.model.data(item_widget.index)
-            progress_widget.set_status(
-                core_constants.RUNNING_STATUS,
-                'Publishing "{}"...'.format(item_widget.get_progress_label()),
-            )
-            # Prepare batch publish definition, create parent context if neccessary
-            try:
-                definition = self.prepare_run_definition(item)
-                progress_widget.update_step_status(
-                    core_constants.CONTEXT,
-                    item_widget.get_progress_label(),
-                    core_constants.SUCCESS_STATUS,
-                    'Ensured asset parent context',
-                    {},
-                    item_widget.item_id,
-                )
-            except Exception as e:
-                # Log error and present in progress widget
-                print(traceback.format_exc())
-                self.logger.exception(e)
-                progress_widget.update_step_status(
-                    core_constants.CONTEXT,
-                    item_widget.get_progress_label(),
-                    core_constants.ERROR_STATUS,
-                    traceback.format_exc(),
-                    {},
-                    item_widget.item_id,
-                )
-                self.failed += 1
-            else:
-                factory = item_widget.factory
-                factory.listen_widget_updates()
 
-                engine_type = definition['_config']['engine_type']
-                try:
-                    self.client.set_run_callback_function(
-                        partial(
-                            self._post_run_definition,
-                            item_widget,
-                            item,
-                            progress_widget,
-                        )
-                    )
-                    self.client.run_definition(definition, engine_type)
-                    # Did it go well?
-                    if factory.has_error:
-                        self.failed += 1
-                    # Collect totals and failed
-                    dependencies_batch_publisher_widget = (
-                        item_widget.dependencies_batch_publisher_widget
-                    )
-                    if dependencies_batch_publisher_widget:
-                        self.total += dependencies_batch_publisher_widget.total
-                        self.failed += (
-                            dependencies_batch_publisher_widget.failed
-                        )
-                finally:
-                    self.client.set_run_callback_function(None)
-                    item_widget.factory.end_widget_updates()
-        return (
-            core_constants.SUCCESS_STATUS
-            if self.total > self.failed
-            else core_constants.ERROR_STATUS,
-            self.total,
-            self.failed,
+        # Trig start of execution
+        self.client.runNextItem.emit()
+
+    def run_item(self, item_widget):
+        '''Publish a single item'''
+
+        self.logger.warning(
+            'Publishing {}'.format(item_widget.get_progress_label())
         )
+        progress_widget = self.client.progress_widget
 
-    def _post_run_definition(self, event, item_widget, item, progress_widget):
-        '''Executed after an item has been publisher, enable publish sub dependencies.'''
-        pass
+        # Prepare progress widget
+        item = self.item_list.model.data(item_widget.index)
+        progress_widget.set_status(
+            core_constants.RUNNING_STATUS,
+            'Publishing "{}"...'.format(item_widget.get_progress_label()),
+        )
+        progress_widget.show_widget()
+
+        # Prepare batch publish definition, create parent context if necessary
+        try:
+            definition = self.prepare_run_definition(item)
+            progress_widget.update_step_status(
+                core_constants.CONTEXT,
+                item_widget.get_progress_label(),
+                core_constants.SUCCESS_STATUS,
+                'Ensured asset parent context',
+                {},
+                item_widget.item_id,
+            )
+        except Exception as e:
+            # Log error and present in progress widget
+            print(traceback.format_exc())
+            self.logger.exception(e)
+            progress_widget.update_step_status(
+                core_constants.CONTEXT,
+                item_widget.get_progress_label(),
+                core_constants.ERROR_STATUS,
+                traceback.format_exc(),
+                {},
+                item_widget.item_id,
+            )
+            self.failed += 1
+
+            # Run next item
+            self.client.runNextItem.emit()
+
+            return
+
+        # Run definition in background thread
+        self.client.run_queue_async.put((item_widget, definition))
+
+    def run_post(self):
+        '''Summarize counts and store'''
+        item_widgets = self.item_list.checked(as_widgets=True)
+
+        total = self.total
+        succeeded = self.succeeded
+        failed = self.failed
+
+        for item_widget in item_widgets:
+            if item_widget.dependencies_batch_publisher_widget:
+                (
+                    _total,
+                    _failed,
+                    _succeeded,
+                ) = item_widget.dependencies_batch_publisher_widget.run_post()
+                total += _total
+                succeeded += _succeeded
+                failed += _failed
+        return total, succeeded, failed
 
 
 class BatchPublisherListBaseWidget(AssetListWidget):
@@ -371,6 +394,10 @@ class ItemBaseWidget(AccordionBaseWidget):
     @property
     def item_id(self):
         return self._item_id
+
+    @property
+    def logger(self):
+        return self.batch_publisher_widget.logger
 
     def __init__(
         self,
@@ -509,16 +536,43 @@ class ItemBaseWidget(AccordionBaseWidget):
 
     def _adjust_height(self):
         '''Align the height with warning label'''
-        # widget_height = self.get_height() + (
-        #     18 if len(self.info_message) > 0 else 0
-        # )
-        # self.header.setMinimumHeight(widget_height)
-        # self.header.setMaximumHeight(widget_height)
-        # self.setMinimumHeight(widget_height)
-        # self.setMaximumHeight(widget_height)
+        pass
 
     def update_item(self, project_context_id):
         raise NotImplementedError()
+
+    def run_callback(self, item_widget, event):
+        '''Executed after an item has been publisher through event from pipieline,
+        enable publish sub dependencies. Should be implemented by child.'''
+        # Check for post finalizer data in event
+        # TODO: Extract asset info and store with item
+        user_data = None
+        for step in event.get('data', []):
+            for stage in step.get('result', []):
+                if stage.get('name') == 'post_finalizer':
+                    for plugin in stage.get('result', []):
+                        if (
+                            plugin.get('name')
+                            == 'unreal_dependencies_publisher_post_finalizer'
+                        ):
+                            if 'data' in plugin.get('user_data', {}):
+                                user_data = plugin['user_data']['data']
+                                break
+                if user_data:
+                    break
+            if user_data:
+                break
+        if not user_data:
+            self.logger.warning('No dependency data found in event payload!')
+            return
+        # Store in widget for later use
+        self.finalizer_user_data = user_data
+
+        self.logger.debug(
+            'Stored post finalized data for: {} [{}]'.format(
+                self.get_progress_label(), len(user_data)
+            )
+        )
 
 
 class PublisherOptionsButton(OptionsButton):
@@ -569,3 +623,9 @@ class PublisherOptionsButton(OptionsButton):
 class InfoLabel(QtWidgets.QLabel):
     def __init__(self):
         super(InfoLabel, self).__init__()
+
+
+class AbortButton(QtWidgets.QPushButton):
+    def __init__(self, label, width=60, height=22, parent=None):
+        super(AbortButton, self).__init__(label, parent=parent)
+        self.setMinimumSize(QtCore.QSize(width, height))
