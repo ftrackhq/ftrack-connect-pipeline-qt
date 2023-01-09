@@ -246,8 +246,8 @@ class BatchPublisherBaseWidget(QtWidgets.QWidget):
                 core_constants.CONTEXT,
                 item_widget.get_progress_label(),
                 core_constants.ERROR_STATUS,
+                str(e),
                 traceback.format_exc(),
-                {},
                 item_widget.item_id,
             )
             self.failed += 1

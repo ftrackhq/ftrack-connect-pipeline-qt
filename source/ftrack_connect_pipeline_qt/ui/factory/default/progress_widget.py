@@ -95,16 +95,21 @@ class PhaseButton(QtWidgets.QPushButton):
         message = None
         self.logged_errors = []
         if results:
-            for stage_result in results:
-                if stage_result.get('status') == False:
-                    for plugin_result in stage_result.get('result'):
-                        plug_error = (
-                            'Plugin {} failed with message: {}'.format(
-                                plugin_result.get('name'),
-                                plugin_result.get('message'),
+            if isinstance(results, dict):
+                for stage_result in results:
+                    if stage_result.get('status') == False:
+                        for plugin_result in stage_result.get('result'):
+                            plug_error = (
+                                'Plugin {} failed with message: {}'.format(
+                                    plugin_result.get('name'),
+                                    plugin_result.get('message'),
+                                )
                             )
-                        )
-                        self.logged_errors.append(plug_error)
+                            self.logged_errors.append(plug_error)
+            else:
+                self.logged_errors.append(
+                    'Operation failed with error: {}'.format(str(results))
+                )
         if self.logged_errors:
             message = "\n".join(self.logged_errors)
 
