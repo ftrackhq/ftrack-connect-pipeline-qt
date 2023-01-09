@@ -166,8 +166,8 @@ class BatchPublisherBaseWidget(QtWidgets.QWidget):
         # Load batch of components, any selected
         item_widgets = self.item_list.checked(as_widgets=True)
         self.total = len(item_widgets)
-        self.failed = 0
         self.succeeded = 0
+        self.failed = 0
 
         if self.total == 0:
             return core_constants.SUCCESS_STATUS, 0, 0
@@ -272,8 +272,8 @@ class BatchPublisherBaseWidget(QtWidgets.QWidget):
             if item_widget.dependencies_batch_publisher_widget:
                 (
                     _total,
-                    _failed,
                     _succeeded,
+                    _failed,
                 ) = item_widget.dependencies_batch_publisher_widget.run_post()
                 total += _total
                 succeeded += _succeeded
