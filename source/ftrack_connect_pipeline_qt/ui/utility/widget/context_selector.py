@@ -25,6 +25,7 @@ class ContextSelector(QtWidgets.QFrame):
     changeContextClicked = QtCore.Signal()
     entityChanged = QtCore.Signal(object)
     entityFound = QtCore.Signal(object)
+    disable_thumbnail = False
 
     @property
     def entity(self):
@@ -37,7 +38,8 @@ class ContextSelector(QtWidgets.QFrame):
         self._entity = value
         self.entity_info.entity = value
         self._context_id = value['id'] if value else None
-        self.set_thumbnail(self._entity)
+        if not self.disable_thumbnail:
+            self.set_thumbnail(self._entity)
         self.entityChanged.emit(value)
         self.entity_info.setVisible(self.entity is not None)
         self.no_entity_label.setVisible(self.entity is None)
