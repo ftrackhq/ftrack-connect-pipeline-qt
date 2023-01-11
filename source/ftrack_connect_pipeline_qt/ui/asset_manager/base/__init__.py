@@ -242,7 +242,6 @@ class AssetListWidget(QtWidgets.QWidget):
                 self.selectionUpdated.emit(selection)
 
     def asset_checked(self, asset_widget):
-        print('@@@ asset_checked: ', asset_widget)
         self.checkedUpdated.emit(self.checked())
 
     def add_widget(self, widget):
