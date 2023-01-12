@@ -186,7 +186,7 @@ class BatchPublisherBaseWidget(QtWidgets.QWidget):
             progress_widget.add_item(item)
             progress_widget.add_step(
                 core_constants.CONTEXT,
-                item_widget.get_progress_label(),
+                item_widget.get_ident(),
                 batch_id=item_widget.item_id,
                 indent=10 * self.level,
             )
@@ -214,16 +214,14 @@ class BatchPublisherBaseWidget(QtWidgets.QWidget):
     def run_item(self, item_widget):
         '''Publish a single item'''
 
-        self.logger.warning(
-            'Publishing {}'.format(item_widget.get_progress_label())
-        )
+        self.logger.warning('Publishing {}'.format(item_widget.get_ident()))
         progress_widget = self.client.progress_widget
 
         # Prepare progress widget
         item = self.item_list.model.data(item_widget.index)
         progress_widget.set_status(
             core_constants.RUNNING_STATUS,
-            'Publishing "{}"...'.format(item_widget.get_progress_label()),
+            'Publishing "{}"...'.format(item_widget.get_ident()),
         )
         progress_widget.show_widget()
 
@@ -232,9 +230,9 @@ class BatchPublisherBaseWidget(QtWidgets.QWidget):
             definition = self.prepare_run_definition(item)
             progress_widget.update_step_status(
                 core_constants.CONTEXT,
-                item_widget.get_progress_label(),
+                item_widget.get_ident(),
                 core_constants.SUCCESS_STATUS,
-                'Ensured asset parent context',
+                'Prepared publish',
                 {},
                 item_widget.item_id,
             )
@@ -244,7 +242,7 @@ class BatchPublisherBaseWidget(QtWidgets.QWidget):
             self.logger.exception(e)
             progress_widget.update_step_status(
                 core_constants.CONTEXT,
-                item_widget.get_progress_label(),
+                item_widget.get_ident(),
                 core_constants.ERROR_STATUS,
                 str(e),
                 traceback.format_exc(),
@@ -445,8 +443,8 @@ class ItemBaseWidget(AccordionBaseWidget):
         '''Widget containing visual context feedback on the item - e.g. were item will be published'''
         raise NotImplementedError()
 
-    def get_progress_label(self):
-        '''Return the label to use for progress widget, from *item*'''
+    def get_ident(self):
+        '''Return human readable idendification of item'''
         raise NotImplementedError()
 
     def init_header_content(self, header_widget, collapsed):
@@ -570,7 +568,7 @@ class ItemBaseWidget(AccordionBaseWidget):
 
         self.logger.debug(
             'Stored post finalized data for: {} [{}]'.format(
-                self.get_progress_label(), len(user_data)
+                self.get_ident(), len(user_data)
             )
         )
 

@@ -1,5 +1,6 @@
 # :coding: utf-8
 # :copyright: Copyright (c) 2014-2022 ftrack
+import datetime
 import logging
 
 from Qt import QtWidgets, QtCore, QtGui
@@ -87,13 +88,24 @@ class AssetList(QtWidgets.QListWidget):
                 asset_type_name
             )
         ).first()
-        assets = self.session.query(
-            'select name, versions.task.id , type.id, id, latest_version,'
-            'latest_version.version '
-            'from Asset where versions.task.id is {} and type.id is {}'.format(
-                context_id, asset_type_entity['id']
-            )
-        ).all()
+        # Determine if we have a task or not
+        context = self.session.get('Context', context_id)
+        if context.entity_type == 'Task':
+            assets = self.session.query(
+                'select name, versions.task.id, type.id, id, latest_version,'
+                'latest_version.version '
+                'from Asset where versions.task.id is {} and type.id is {}'.format(
+                    context_id, asset_type_entity['id']
+                )
+            ).all()
+        else:
+            assets = self.session.query(
+                'select name, versions.task.id, type.id, id, latest_version,'
+                'latest_version.version '
+                'from Asset where parent.id is {} and type.id is {}'.format(
+                    context_id, asset_type_entity['id']
+                )
+            ).all()
         return assets
 
     def _store_assets(self, assets):

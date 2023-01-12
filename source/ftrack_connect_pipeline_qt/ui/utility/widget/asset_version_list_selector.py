@@ -286,7 +286,12 @@ class AssetListSelector(QtWidgets.QFrame):
                     version_num,
                 )
                 return
-        self.assetChanged.emit(asset_entity['name'] if asset_entity else None, asset_entity, None, None)
+        self.assetChanged.emit(
+            asset_entity['name'] if asset_entity else None,
+            asset_entity,
+            None,
+            None,
+        )
 
     def set_context(self, context_id, asset_type_name):
         self.logger.debug('setting context to :{}'.format(context_id))

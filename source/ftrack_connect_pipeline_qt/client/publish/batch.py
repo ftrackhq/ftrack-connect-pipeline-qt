@@ -316,13 +316,18 @@ class QtBatchPublisherClientWidget(QtPublisherClient, dialog.Dialog):
                 self.run_definition(definition, engine_type)
 
                 # Did it go well?
+                print(
+                    '@@@ {}: {}'.format(
+                        item_widget.get_ident(), factory.has_error
+                    )
+                )
                 if factory.has_error:
                     item_widget.batch_publisher_widget.failed += 1
                 else:
                     item_widget.batch_publisher_widget.succeeded += 1
 
             except Exception as e:
-                self.logger(traceback.format_exc())
+                self.logger.warning(traceback.format_exc())
                 item_widget.batch_publisher_widget.failed += 1
 
             finally:
@@ -369,7 +374,7 @@ class QtBatchPublisherClientWidget(QtPublisherClient, dialog.Dialog):
         else:
             self.progress_widget.set_status(
                 core_constants.ERROR_STATUS,
-                'Could not publish any assets{} - check logs for more information!'.format(
+                'Could not publish any asset{} - check logs for more information!'.format(
                     's' if total > 1 else '',
                 ),
             )
