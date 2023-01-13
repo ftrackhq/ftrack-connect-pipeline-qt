@@ -165,6 +165,9 @@ class ContextSelector(QtWidgets.QFrame):
         current_entity = entity or self._entity
         self.entity = current_entity
 
+    def set_entity_info_path(self, path):
+        self.entity_info.set_path_field(path)
+
     def _find_context_entity(self, context_id):
         '''(Run in background thread) Query entity from ftrack'''
         context_entity = self.session.query(
