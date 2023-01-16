@@ -26,6 +26,7 @@ class BatchPublisherWidgetFactory(WidgetFactoryBase):
 
     @staticmethod
     def client_type():
+        '''Return the type of client'''
         return core_constants.PUBLISHER
 
     def set_definition(self, definition):

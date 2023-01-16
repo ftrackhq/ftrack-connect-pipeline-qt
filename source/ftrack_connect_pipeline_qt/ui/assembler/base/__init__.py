@@ -67,18 +67,22 @@ class AssemblerBaseWidget(QtWidgets.QWidget):
 
     @property
     def loadable_count(self):
+        '''Return the number of loadable components'''
         return self._loadable_count
 
     @property
     def match_component_names(self):
+        '''Return True if component should be matched by name'''
         return self._rb_match_component_name.isChecked()
 
     @property
     def show_non_compatible_assets(self):
+        '''Return True if non compatible assets should be shown'''
         return self._cb_show_non_compatible.isChecked()
 
     @property
     def client(self):
+        '''Return the client'''
         return self._client
 
     @property
@@ -104,6 +108,7 @@ class AssemblerBaseWidget(QtWidgets.QWidget):
         self.post_build()
 
     def pre_build(self):
+        '''Create the model'''
         self.setLayout(QtWidgets.QVBoxLayout())
         self.layout().setContentsMargins(1, 0, 1, 0)
         self.layout().setSpacing(0)
@@ -259,11 +264,13 @@ class AssemblerBaseWidget(QtWidgets.QWidget):
         self._rebuild_button.setVisible(True)
 
     def _on_load_error(self, error_message):
+        '''Act upon a load error - set progress widget status and display *error_message*'''
         self.client.progress_widget.set_status(
             constants.WARNING_STATUS, error_message
         )
 
     def mousePressEvent(self, event):
+        '''Make sure to clear selection when not right clicking an item'''
         if event.button() != QtCore.Qt.RightButton and self._component_list:
             self._component_list.clear_selection()
         return super(AssemblerBaseWidget, self).mousePressEvent(event)
@@ -463,6 +470,7 @@ class AssemblerListBaseWidget(AssetListWidget):
         )
 
     def rebuild(self):
+        '''Rebuild the list widget, must be implemented by child'''
         raise NotImplementedError()
 
     def get_loadable(self):
@@ -563,6 +571,7 @@ class ComponentBaseWidget(AccordionBaseWidget):
         return self._status_widget
 
     def init_options_button(self):
+        '''Create the options button and connect ut to option build function'''
         self._options_button = ImporterOptionsButton(
             'O', icon.MaterialIcon('settings', color='gray')
         )
@@ -571,26 +580,27 @@ class ComponentBaseWidget(AccordionBaseWidget):
         return self._options_button
 
     def get_thumbnail_height(self):
+        '''Return the height of the thumbnail, must be implemented by child'''
         raise NotImplementedError()
 
     def get_ident_widget(self):
-        '''Widget containing name identification of asset'''
+        '''Widget containing name identification of asset, must be implemented by child'''
         raise NotImplementedError()
 
     def get_version_widget(self):
-        '''Widget containing version label or combobox.'''
+        '''Widget containing version label or combobox, must be implemented by child'''
         raise NotImplementedError()
 
     def set_version(self, version_entity):
-        '''Set the current *version_entity*, must be overridden by child'''
+        '''Set the current *version_entity*, must be implemented by child'''
         raise NotImplementedError()
 
     def set_latest_version(self, is_latest_version):
-        '''Set the current *is_latest_version*, must be overridden by child'''
+        '''Set the current *is_latest_version*, must be implemented by child'''
         raise NotImplementedError()
 
     def init_header_content(self, header_widget, collapsed):
-        '''Build all widgets'''
+        '''Build all widgets to but in the accordion header'''
         header_layout = QtWidgets.QVBoxLayout()
         header_layout.setContentsMargins(0, 0, 0, 0)
         header_layout.setSpacing(0)

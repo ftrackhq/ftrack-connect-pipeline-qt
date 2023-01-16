@@ -19,6 +19,7 @@ class PublisherWidgetFactory(WidgetFactoryBase):
 
     @staticmethod
     def client_type():
+        '''Return the type of client'''
         return core_constants.PUBLISHER
 
     def post_build(self):

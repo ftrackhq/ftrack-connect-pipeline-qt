@@ -28,6 +28,7 @@ class AssemblerWidgetFactory(OpenerAssemblerWidgetFactoryBase):
 
     @staticmethod
     def client_type():
+        '''Return the type of client'''
         return core_constants.LOADER
 
     @staticmethod

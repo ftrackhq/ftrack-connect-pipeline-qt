@@ -46,14 +46,14 @@ class QtBatchPublisherClientWidget(QtPublisherClient, dialog.Dialog):
     runPost = QtCore.Signal()
 
     @property
-    def items(self):
+    def initial_items(self):
         '''Return list of supplied initial items to publish'''
-        return self._items
+        return self._initial_items
 
     def __init__(
         self,
         event_manager,
-        items,
+        initial_items,
         title=None,
         immediate_run=False,
         parent=None,
@@ -69,7 +69,7 @@ class QtBatchPublisherClientWidget(QtPublisherClient, dialog.Dialog):
         '''
         dialog.Dialog.__init__(self, parent=parent)
         QtPublisherClient.__init__(self, event_manager)
-        self._items = items
+        self._initial_items = initial_items
         self._immediate_run = immediate_run
         self.reset_processed_items()
         self.logger.debug('start batch publisher')
@@ -127,7 +127,7 @@ class QtBatchPublisherClientWidget(QtPublisherClient, dialog.Dialog):
         self.layout().addWidget(line.Line(style='solid'))
 
         self.progress_widget = WidgetFactoryBase.create_progress_widget(
-            core_constants.BATCH_PUBLISHER
+            qt_constants.BATCH_PUBLISHER_WIDGET
         )
         self.header.content_container.layout().addWidget(
             self.progress_widget.widget
@@ -240,12 +240,11 @@ class QtBatchPublisherClientWidget(QtPublisherClient, dialog.Dialog):
         self.run_plugin(plugin_data, method, self.engine_type)
 
     def _build_definition_selector(self):
+        '''Build definition selector widget, must be implemented by child'''
         raise NotImplementedError()
 
     def _build_batch_publisher_widget(self):
-        raise NotImplementedError()
-
-    def _get_list_widget_class(self):
+        '''Build batch publisher widget, must be implemented by child'''
         raise NotImplementedError()
 
     def run(self):
@@ -301,6 +300,7 @@ class QtBatchPublisherClientWidget(QtPublisherClient, dialog.Dialog):
                 factory = item_widget.factory
                 factory.listen_widget_updates()
 
+                # Make sure item widget can react and extract metadata when publish has finished
                 self.set_run_callback_function(
                     partial(
                         item_widget.run_callback,
@@ -315,12 +315,7 @@ class QtBatchPublisherClientWidget(QtPublisherClient, dialog.Dialog):
                 # Run the definition, status feedback will come in async but pushed to main thread by factory
                 self.run_definition(definition, engine_type)
 
-                # Did it go well?
-                print(
-                    '@@@ {}: {}'.format(
-                        item_widget.get_ident(), factory.has_error
-                    )
-                )
+                # Did publish succeed?
                 if factory.has_error:
                     item_widget.batch_publisher_widget.failed += 1
                 else:

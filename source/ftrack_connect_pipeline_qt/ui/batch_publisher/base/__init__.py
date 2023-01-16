@@ -39,11 +39,13 @@ class BatchPublisherBaseWidget(QtWidgets.QWidget):
 
     @property
     def client(self):
+        '''Return client instance.'''
         return self._client
 
     @property
-    def items(self):
-        return self._items
+    def initial_items(self):
+        '''Return the list of initial items passed to batch publisher widget from client'''
+        return self._initial_items
 
     @property
     def level(self):
@@ -58,9 +60,9 @@ class BatchPublisherBaseWidget(QtWidgets.QWidget):
     def logger(self):
         return self._client.logger
 
-    def __init__(self, client, items, level=0, parent=None):
+    def __init__(self, client, initial_items, level=0, parent=None):
         self._client = client
-        self._items = items
+        self._initial_items = initial_items
         self._level = level
         self.item_list = None
         self.total = self.failed = 0
@@ -214,7 +216,7 @@ class BatchPublisherBaseWidget(QtWidgets.QWidget):
     def run_item(self, item_widget):
         '''Publish a single item'''
 
-        self.logger.warning('Publishing {}'.format(item_widget.get_ident()))
+        self.logger.info('Publishing {}'.format(item_widget.get_ident()))
         progress_widget = self.client.progress_widget
 
         # Prepare progress widget
@@ -308,16 +310,8 @@ class BatchPublisherListBaseWidget(AssetListWidget):
             self.selectionUpdated.emit(selection)
 
     def rebuild(self):
+        '''Rebuild the list based on model data, must be implemented by child'''
         raise NotImplementedError()
-
-    def get_loadable(self):
-        '''Return a list of all loadable assets regardless of selection'''
-        result = []
-        for widget in self.assets:
-            if widget.definition is not None:
-                widget.set_selected(True)
-                result.append(widget)
-        return result
 
 
 class ItemBaseWidget(AccordionBaseWidget):
@@ -391,6 +385,7 @@ class ItemBaseWidget(AccordionBaseWidget):
 
     @property
     def item_id(self):
+        '''Return the unique temporary batch publisher id of this item'''
         return self._item_id
 
     @property
@@ -428,6 +423,7 @@ class ItemBaseWidget(AccordionBaseWidget):
         self._adjust_height()
 
     def init_options_button(self):
+        '''Create the options button and connect ut to option build function'''
         self._options_button = PublisherOptionsButton(
             'O', icon.MaterialIcon('settings', color='gray')
         )
@@ -537,40 +533,12 @@ class ItemBaseWidget(AccordionBaseWidget):
         pass
 
     def update_item(self, project_context_id):
+        '''Have item reflect upon change of *project_context_id*, must be implemented by child'''
         raise NotImplementedError()
 
     def run_callback(self, item_widget, event):
-        '''Executed after an item has been publisher through event from pipieline,
-        enable publish sub dependencies. Should be implemented by child.'''
-        # Check for post finalizer data in event
-        # TODO: Extract asset info and store with item
-        user_data = None
-        for step in event.get('data', []):
-            for stage in step.get('result', []):
-                if stage.get('name') == 'post_finalizer':
-                    for plugin in stage.get('result', []):
-                        if (
-                            plugin.get('name')
-                            == 'unreal_dependencies_publisher_post_finalizer'
-                        ):
-                            if 'data' in plugin.get('user_data', {}):
-                                user_data = plugin['user_data']['data']
-                                break
-                if user_data:
-                    break
-            if user_data:
-                break
-        if not user_data:
-            self.logger.warning('No dependency data found in event payload!')
-            return
-        # Store in widget for later use
-        self.finalizer_user_data = user_data
-
-        self.logger.debug(
-            'Stored post finalized data for: {} [{}]'.format(
-                self.get_ident(), len(user_data)
-            )
-        )
+        '''Executed after an item has been published through event from pipeline, should be implemented by child'''
+        pass
 
 
 class PublisherOptionsButton(OptionsButton):

@@ -60,9 +60,6 @@ class AssetListModel(QtCore.QAbstractTableModel):
         '''Return raw data'''
         return self.__asset_entities_list
 
-    def items_id(self):
-        return id(self.__asset_entities_list)
-
     def insertRows(self, row, data, index=None):
         '''Insert *data* at *index* (or *row* if no index defined)'''
         count = len(data)
