@@ -55,7 +55,6 @@ class QtBatchPublisherClientWidget(QtPublisherClient, dialog.Dialog):
         event_manager,
         initial_items,
         title=None,
-        immediate_run=False,
         parent=None,
     ):
         '''
@@ -70,7 +69,6 @@ class QtBatchPublisherClientWidget(QtPublisherClient, dialog.Dialog):
         dialog.Dialog.__init__(self, parent=parent)
         QtPublisherClient.__init__(self, event_manager)
         self._initial_items = initial_items
-        self._immediate_run = immediate_run
         self.reset_processed_items()
         self.logger.debug('start batch publisher')
 
