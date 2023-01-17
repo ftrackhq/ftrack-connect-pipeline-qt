@@ -130,6 +130,15 @@ class QtAssemblerClientWidget(QtLoaderClient, dialog.Dialog):
     def is_docked(self):
         return False
 
+    def get_asset_manager_client(self):
+        '''Return the class of the asset manager client, can be overridden by child'''
+        QtAssetManagerClientWidget(
+            self.event_manager,
+            self._asset_list_model,
+            is_assembler=True,
+            multithreading_enabled=self.multithreading_enabled,
+        )
+
     # Build
 
     def pre_build(self):
@@ -140,12 +149,7 @@ class QtAssemblerClientWidget(QtLoaderClient, dialog.Dialog):
         self.header = header.Header(self.session)
         self.header.setMinimumHeight(50)
         # Create and add the asset manager client
-        self.asset_manager = QtAssetManagerClientWidget(
-            self.event_manager,
-            self._asset_list_model,
-            is_assembler=True,
-            multithreading_enabled=self.multithreading_enabled,
-        )
+        self.asset_manager = self.get_asset_manager_client()
 
     def build_left_widget(self):
         '''Left split pane content'''
@@ -494,7 +498,7 @@ class QtAssemblerClientWidget(QtLoaderClient, dialog.Dialog):
                             failed,
                         ),
                     )
-                self.asset_manager.asset_manager_widget.rebuild.emit()
+                self.asset_manager.asset_manager.rebuild.emit()
             else:
                 self.progress_widget.set_status(
                     core_constants.ERROR_STATUS,

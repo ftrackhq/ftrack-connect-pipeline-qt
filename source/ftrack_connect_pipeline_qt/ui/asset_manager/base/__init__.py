@@ -45,6 +45,11 @@ class AssetManagerBaseWidget(QtWidgets.QWidget):
         return self._client
 
     @property
+    def snapshot_assets(self):
+        '''Return True if should display separate list of snapshot assets.'''
+        return self.client.snapshot_assets
+
+    @property
     def is_assembler(self):
         '''Return asset list widget'''
         return self._client.is_assembler
@@ -120,11 +125,25 @@ class AssetManagerBaseWidget(QtWidgets.QWidget):
         self.scroll = scroll_area.ScrollArea()
         self.scroll.setWidgetResizable(True)
         self.scroll.setHorizontalScrollBarPolicy(QtCore.Qt.ScrollBarAlwaysOff)
-        self.layout().addWidget(self.scroll, 100)
 
-    def get_tab_name(self):
-        '''Return the name of the tab, if multiple tabs are used. Can be overridden by child'''
-        return 'ftrack Assets'
+        if not self.client.snapshot_assets:
+            # A single list of ftrack assets
+            self.layout().addWidget(self.scroll, 100)
+        else:
+            # Create a scroll area for snapshot component list
+            self.snapshot_scroll = scroll_area.ScrollArea()
+            self.snapshot_scroll.setWidgetResizable(True)
+            self.snapshot_scroll.setHorizontalScrollBarPolicy(
+                QtCore.Qt.ScrollBarAlwaysOff
+            )
+
+            # Put into a split view
+            self._splitter = QtWidgets.QSplitter(QtCore.Qt.Horizontal)
+            self._splitter.addWidget(self.scroll)
+            self._splitter.addWidget(self.snapshot_scroll)
+            self._splitter.setHandleWidth(1)
+
+            self.layout().addWidget(self._splitter, 100)
 
     def post_build(self):
         '''Post Build ui method for events connections.'''
@@ -169,6 +188,10 @@ class AssetListWidget(QtWidgets.QWidget):
             widget = self.layout().itemAt(i).widget()
             if widget and isinstance(widget, AccordionBaseWidget):
                 yield widget
+
+    @property
+    def count(self):
+        return self.model.rowCount()
 
     def __init__(self, model, parent=None):
         '''

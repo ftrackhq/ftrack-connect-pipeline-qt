@@ -47,6 +47,7 @@ class AssetManagerWidget(AssetManagerBaseWidget):
         :param parent:  The parent dialog or window
         '''
         self.client_notification_subscribe_id = None
+        self._asset_list = self._snapshot_asset_list = None
         super(AssetManagerWidget, self).__init__(
             asset_manager_client,
             asset_list_model,
@@ -132,6 +133,16 @@ class AssetManagerWidget(AssetManagerBaseWidget):
             layout
         ) if not self.is_assembler else self._build_assembler_header(layout)
 
+    def build_asset_list_container(self, asset_list):
+        '''Create a container widget for *asset_list*'''
+        asset_list_container = QtWidgets.QWidget()
+        asset_list_container.setLayout(QtWidgets.QVBoxLayout())
+        asset_list_container.layout().setContentsMargins(0, 0, 0, 0)
+        asset_list_container.layout().setSpacing(0)
+        asset_list_container.layout().addWidget(asset_list)
+        asset_list_container.layout().addWidget(QtWidgets.QLabel(''), 1000)
+        return asset_list_container
+
     def build(self):
         '''(Override)'''
         super(AssetManagerWidget, self).build()
@@ -142,14 +153,22 @@ class AssetManagerWidget(AssetManagerBaseWidget):
             docked=self._client.is_docked(),
         )
 
-        asset_list_container = QtWidgets.QWidget()
-        asset_list_container.setLayout(QtWidgets.QVBoxLayout())
-        asset_list_container.layout().setContentsMargins(0, 0, 0, 0)
-        asset_list_container.layout().setSpacing(0)
-        asset_list_container.layout().addWidget(self._asset_list)
-        asset_list_container.layout().addWidget(QtWidgets.QLabel(''), 1000)
+        self.scroll.setWidget(
+            self.build_asset_list_container(self._asset_list)
+        )
 
-        self.scroll.setWidget(asset_list_container)
+        if self.client.snapshot_assets:
+            # Add snapshot asset list
+
+            self._snapshot_asset_list = AssetManagerListWidget(
+                self.client.get_snapshot_list_model(),
+                self.client.get_snapshot_asset_widget_class(),
+                docked=self._client.is_docked(),
+            )
+
+            self.snapshot_scroll.setWidget(
+                self.build_asset_list_container(self._snapshot_asset_list)
+            )
 
     def post_build(self):
         '''(Override)'''
@@ -161,12 +180,25 @@ class AssetManagerWidget(AssetManagerBaseWidget):
         self._asset_list.changeAssetVersion.connect(
             self._on_change_asset_version
         )
+        if self.snapshot_assets:
+            self._snapshot_asset_list.refreshed.connect(
+                self._on_asset_list_refreshed
+            )
+            self._snapshot_asset_list.changeAssetVersion.connect(
+                self._on_change_asset_version
+            )
 
     def set_asset_list(self, asset_entities_list):
         '''Clear model and add asset entities, will trigger list to be rebuilt.'''
-        self._asset_list_model.reset()
+        self._asset_list.model.reset()
         if asset_entities_list and 0 < len(asset_entities_list):
             self._asset_list.model.insertRows(0, asset_entities_list)
+
+    def set_snapshot_asset_list(self, asset_entities_list):
+        '''Clear model and add asset entities, will trigger list to be rebuilt.'''
+        self._snapshot_asset_list.model.reset()
+        if asset_entities_list and 0 < len(asset_entities_list):
+            self._snapshot_asset_list.model.insertRows(0, asset_entities_list)
 
     def set_busy(self, busy):
         '''Enter busy mode if *busy* is True - start spinner and show it. If *busy* is false, stop and hide the spinner'''
@@ -187,6 +219,8 @@ class AssetManagerWidget(AssetManagerBaseWidget):
         '''Search text has been altered by user, search in the current model and hide assets accordingly'''
         if self._asset_list:
             self._asset_list.on_search(text)
+        if self._snapshot_asset_list:
+            self._snapshot_asset_list.on_search(text)
 
     def create_actions(self, actions):
         '''Creates all the actions for the context menu.'''
@@ -211,7 +245,7 @@ class AssetManagerWidget(AssetManagerBaseWidget):
         '''Executes the context menu'''
         # Anything selected?
         widget_deselect = None
-        if len(self._asset_list.selection()) == 0:
+        if len(self.selection()) == 0:
             # Select the clicked widget
             widget_select = self.childAt(event.x(), event.y())
             if widget_select:
@@ -263,7 +297,7 @@ class AssetManagerWidget(AssetManagerBaseWidget):
         Triggered when select action menu been clicked.
         Emits select_asset signal.
         '''
-        selection = self._asset_list.selection()
+        selection = self.selection()
         if self.check_selection(selection):
             self.selectAssets.emit(selection, plugin)
 
@@ -272,7 +306,7 @@ class AssetManagerWidget(AssetManagerBaseWidget):
         Triggered when load action menu been clicked.
         Emits load_assets signal to load the selected assets in the scene.
         '''
-        selection = self._asset_list.selection()
+        selection = self.selection()
         if self.check_selection(selection):
             for a_info in selection:
                 loaded = a_info[asset_constants.OBJECTS_LOADED]
@@ -295,7 +329,7 @@ class AssetManagerWidget(AssetManagerBaseWidget):
         Emits update_asset signal.
         Uses the given *plugin* to update the selected assets
         '''
-        selection = self._asset_list.selection()
+        selection = self.selection()
         if self.check_selection(selection):
             if ModalDialog(
                 self._client.parent(),
@@ -311,7 +345,7 @@ class AssetManagerWidget(AssetManagerBaseWidget):
         Triggered when unload action menu been clicked.
         Emits load_assets signal to unload the selected assets in the scene.
         '''
-        selection = self._asset_list.selection()
+        selection = self.selection()
         if self.check_selection(selection):
             for a_info in selection:
                 loaded = a_info[asset_constants.OBJECTS_LOADED]
@@ -340,7 +374,7 @@ class AssetManagerWidget(AssetManagerBaseWidget):
         Triggered when remove action menu been clicked.
         Emits remove_asset signal.
         '''
-        selection = self._asset_list.selection()
+        selection = self.selection()
         if self.check_selection(selection):
             if ModalDialog(
                 self._client.parent(),
@@ -380,20 +414,32 @@ class AssetManagerWidget(AssetManagerBaseWidget):
             )
         )
 
+    def selection(self):
+        '''Return the selected assets'''
+        selection = self._asset_list.selection()
+        if self.snapshot_assets:
+            selection.extend(self._snapshot_asset_list.selection())
+        return selection
+
     def _on_refresh(self):
         '''Refresh the asset list from the model data.'''
         self._asset_list.rebuild()
+        if self.snapshot_assets:
+            self._snapshot_asset_list.rebuild()
 
     def _on_asset_list_refreshed(self):
         '''List has refreshed from model'''
+        count = self._asset_list.count
+        if self.snapshot_assets:
+            count += self._snapshot_asset_list.count
         if self.is_assembler:
             self._label_info.setText(
                 'Listing {} asset{}'.format(
-                    self._asset_list.model.rowCount(),
-                    's' if self._asset_list.model.rowCount() > 1 else '',
+                    count,
+                    's' if count > 1 else '',
                 )
             )
-        self._client.selectionUpdated.emit(self._asset_list.selection())
+        self._client.selectionUpdated.emit(self.selection())
 
     def _on_rebuild(self):
         '''Query DCC for scene assets.'''
