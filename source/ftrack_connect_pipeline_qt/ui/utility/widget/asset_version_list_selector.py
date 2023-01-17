@@ -277,17 +277,21 @@ class AssetListSelector(QtWidgets.QFrame):
         if asset_widget:
             # A proper asset were selected
             asset_entity = asset_widget.asset
-            asset_name = asset_entity
             if asset_widget.current_version_id:
                 version_num = asset_widget.current_version_number
                 self.assetChanged.emit(
-                    asset_name,
+                    asset_entity['name'] if asset_entity else None,
                     asset_entity,
                     asset_widget.current_version_id,
                     version_num,
                 )
                 return
-        self.assetChanged.emit(asset_name, asset_entity, None, None)
+        self.assetChanged.emit(
+            asset_entity['name'] if asset_entity else None,
+            asset_entity,
+            None,
+            None,
+        )
 
     def set_context(self, context_id, asset_type_name):
         self.logger.debug('setting context to :{}'.format(context_id))

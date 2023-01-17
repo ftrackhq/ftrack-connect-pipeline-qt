@@ -15,6 +15,8 @@ _BASE_ = 'ftrack.pipeline'
 
 # Assembler widget
 ASSEMBLER_WIDGET = 'assembler'
+#: Batch bublisher widget
+BATCH_PUBLISHER_WIDGET = 'batch_publisher'
 # Change context widget
 CHANGE_CONTEXT_WIDGET = 'change_context'
 # Savet widget

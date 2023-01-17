@@ -11,16 +11,14 @@ from ftrack_connect_pipeline_qt.ui.factory.ui_overrides import (
     UI_OVERRIDES,
 )
 
-from ftrack_connect_pipeline_qt.ui.factory import (
-    OpenerAssemblerWidgetFactoryBase,
-)
+from ftrack_connect_pipeline_qt.ui.factory import WidgetFactoryBase
 
 
-class AssemblerWidgetFactory(OpenerAssemblerWidgetFactoryBase):
+class BatchPublisherWidgetFactory(WidgetFactoryBase):
     '''Augmented widget factory for assembler(loader) client'''
 
     def __init__(self, event_manager, ui_types, parent=None):
-        super(AssemblerWidgetFactory, self).__init__(
+        super(BatchPublisherWidgetFactory, self).__init__(
             event_manager,
             ui_types,
             parent=parent,
@@ -29,14 +27,7 @@ class AssemblerWidgetFactory(OpenerAssemblerWidgetFactoryBase):
     @staticmethod
     def client_type():
         '''Return the type of client'''
-        return core_constants.LOADER
-
-    @staticmethod
-    def create_progress_widget(parent=None):
-        '''(Override) Create the progress widget'''
-        return OpenerAssemblerWidgetFactoryBase.create_progress_widget(
-            AssemblerWidgetFactory.client_type(), parent=parent
-        )
+        return core_constants.PUBLISHER
 
     def set_definition(self, definition):
         self.definition = definition
@@ -72,7 +63,7 @@ class AssemblerWidgetFactory(OpenerAssemblerWidgetFactoryBase):
 
         return main_widget
 
-    def build_progress_ui(self, component):
+    def build_progress_ui(self, item_id):
         '''Build only progress widget components, prepare to run.'''
         if not self.progress_widget:
             return
@@ -84,7 +75,7 @@ class AssemblerWidgetFactory(OpenerAssemblerWidgetFactoryBase):
                     self.progress_widget.add_step(
                         step_type,
                         step_name,
-                        batch_id=component['version']['id'],
+                        batch_id=item_id,
                     )
             else:
                 for stage in step.get_all(category=core_constants.STAGE):
@@ -93,14 +84,5 @@ class AssemblerWidgetFactory(OpenerAssemblerWidgetFactoryBase):
                         self.progress_widget.add_step(
                             step_type,
                             stage_name,
-                            batch_id=component['version']['id'],
+                            batch_id=item_id,
                         )
-
-    def check_components(self, asset_version_entity):
-        '''(Override)'''
-        if not self.components:
-            # Wait for version to be selected and loaded
-            return
-        super(OpenerAssemblerWidgetFactoryBase, self).check_components(
-            asset_version_entity
-        )

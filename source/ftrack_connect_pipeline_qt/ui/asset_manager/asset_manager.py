@@ -8,6 +8,7 @@ from Qt import QtWidgets, QtCore, QtCompat, QtGui
 
 from ftrack_connect_pipeline import constants as core_constants
 from ftrack_connect_pipeline.constants import asset as asset_constants
+
 from ftrack_connect_pipeline_qt import constants as qt_constants
 from ftrack_connect_pipeline_qt.ui.asset_manager.base import (
     AssetManagerBaseWidget,
@@ -480,10 +481,7 @@ class AssetManagerListWidget(AssetListWidget):
                 asset_widget, 'first', 'true' if row == 0 else 'false'
             )
             asset_widget.set_asset_info(asset_info)
-            self.layout().addWidget(asset_widget)
-            asset_widget.clicked.connect(
-                partial(self.asset_clicked, asset_widget)
-            )
+            self.add_widget(asset_widget)
             asset_widget.changeAssetVersion.connect(
                 self._on_change_asset_version
             )

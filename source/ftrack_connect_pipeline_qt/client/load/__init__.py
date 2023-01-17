@@ -135,7 +135,6 @@ class QtAssemblerClientWidget(QtLoaderClient, dialog.Dialog):
     def pre_build(self):
         self.setLayout(QtWidgets.QVBoxLayout())
         self.layout().setAlignment(QtCore.Qt.AlignTop)
-        self.layout().setContentsMargins(16, 16, 16, 16)
         self.layout().setSpacing(0)
         self.layout().setContentsMargins(16, 16, 16, 16)
         self.header = header.Header(self.session)
@@ -167,8 +166,10 @@ class QtAssemblerClientWidget(QtLoaderClient, dialog.Dialog):
 
         # Have definition selector but invisible unless there are multiple hosts
         self.definition_selector = (
-            definition_selector.AssemblerDefinitionSelector()
+            definition_selector.BatchDefinitionSelector()
         )
+        self.definition_selector.definition_widget.setVisible(False)
+        self.definition_selector.label_widget.setVisible(False)
         self.definition_selector.refreshed.connect(partial(self.refresh, True))
         self._left_widget.layout().addWidget(self.definition_selector)
 
@@ -278,7 +279,7 @@ class QtAssemblerClientWidget(QtLoaderClient, dialog.Dialog):
     def on_host_changed(self, host_connection):
         '''Triggered when client has set host connection'''
         if self.definition_filters:
-            self.definition_selector.definition_title_filters = (
+            self.definition_selector.definition_filters = (
                 self.definition_filters
             )
         if self.definition_extensions_filter:
@@ -431,7 +432,7 @@ class QtAssemblerClientWidget(QtLoaderClient, dialog.Dialog):
                 )  # Have factory update main progress widget
                 self.progress_widget.add_version(component)
                 factory.build_progress_ui(component)
-            self.progress_widget.components_added()
+            self.progress_widget.widgets_added()
 
             self.progress_widget.show_widget()
             failed = 0

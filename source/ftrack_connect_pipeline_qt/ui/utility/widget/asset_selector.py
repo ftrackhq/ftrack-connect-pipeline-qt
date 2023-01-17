@@ -1,5 +1,6 @@
 # :coding: utf-8
 # :copyright: Copyright (c) 2014-2022 ftrack
+import datetime
 import logging
 
 from Qt import QtWidgets, QtCore, QtGui
@@ -87,13 +88,27 @@ class AssetList(QtWidgets.QListWidget):
                 asset_type_name
             )
         ).first()
-        assets = self.session.query(
-            'select name, versions.task.id , type.id, id, latest_version,'
-            'latest_version.version '
-            'from Asset where versions.task.id is {} and type.id is {}'.format(
-                context_id, asset_type_entity['id']
-            )
-        ).all()
+        # Determine if we have a task or not
+        context = self.session.get('Context', context_id)
+        # If it's a fake asset, context will be None so return empty list.
+        if not context:
+            return []
+        if context.entity_type == 'Task':
+            assets = self.session.query(
+                'select name, versions.task.id, type.id, id, latest_version,'
+                'latest_version.version '
+                'from Asset where versions.task.id is {} and type.id is {}'.format(
+                    context_id, asset_type_entity['id']
+                )
+            ).all()
+        else:
+            assets = self.session.query(
+                'select name, versions.task.id, type.id, id, latest_version,'
+                'latest_version.version '
+                'from Asset where parent.id is {} and type.id is {}'.format(
+                    context_id, asset_type_entity['id']
+                )
+            ).all()
         return assets
 
     def _store_assets(self, assets):
@@ -338,7 +353,11 @@ class AssetSelector(QtWidgets.QWidget):
     def set_context(self, context_id, asset_type_name):
         self.logger.debug('setting context to :{}'.format(context_id))
         self.asset_list.on_context_changed(context_id, asset_type_name)
-        self.new_asset_input.name.setText(asset_type_name)
+        self.set_asset_name(asset_type_name)
+
+    def set_asset_name(self, asset_name):
+        self.logger.debug('setting asset name to :{}'.format(asset_name))
+        self.new_asset_input.name.setText(asset_name)
 
     def _new_asset_changed(self):
         '''New asset name text changed'''

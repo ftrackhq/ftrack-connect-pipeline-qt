@@ -80,6 +80,9 @@ class PublisherOptionsButton(OptionsButton):
 
         self._component_options_widget = QtWidgets.QWidget()
         self._component_options_widget.setLayout(QtWidgets.QVBoxLayout())
+        self._component_options_widget.layout().addWidget(
+            QtWidgets.QLabel(''), 100
+        )  # spacer
 
         scroll = scroll_area.ScrollArea()
         scroll.setWidget(self._component_options_widget)
@@ -107,22 +110,43 @@ class PublisherOptionsButton(OptionsButton):
 
     def add_validator_widget(self, widget):
         '''Add validator plugin container widget to overlay'''
-        self._component_options_widget.layout().addWidget(line.Line())
-        self._component_options_widget.layout().addWidget(QtWidgets.QLabel(''))
+        self._component_options_widget.layout().insertWidget(
+            self._component_options_widget.layout().count() - 1, line.Line()
+        )
+        self._component_options_widget.layout().insertWidget(
+            self._component_options_widget.layout().count() - 1,
+            QtWidgets.QLabel(''),
+        )
         label = QtWidgets.QLabel('Validators:')
         label.setObjectName('gray')
-        self._component_options_widget.layout().addWidget(label)
-        self._component_options_widget.layout().addWidget(widget)
+        self._component_options_widget.layout().insertWidget(
+            self._component_options_widget.layout().count() - 1, label
+        )
+        self._component_options_widget.layout().insertWidget(
+            self._component_options_widget.layout().count() - 1, widget
+        )
 
     def add_exporter_widget(self, widget):
         '''Add exporter plugin container widget to overlay'''
-        self._component_options_widget.layout().addWidget(QtWidgets.QLabel(''))
-        self._component_options_widget.layout().addWidget(line.Line())
-        self._component_options_widget.layout().addWidget(QtWidgets.QLabel(''))
+        self._component_options_widget.layout().insertWidget(
+            self._component_options_widget.layout().count() - 1,
+            QtWidgets.QLabel(''),
+        )
+        self._component_options_widget.layout().insertWidget(
+            self._component_options_widget.layout().count() - 1, line.Line()
+        )
+        self._component_options_widget.layout().insertWidget(
+            self._component_options_widget.layout().count() - 1,
+            QtWidgets.QLabel(''),
+        )
         label = QtWidgets.QLabel('Exporter:')
         label.setObjectName('gray')
-        self._component_options_widget.layout().addWidget(label)
-        self._component_options_widget.layout().addWidget(widget)
+        self._component_options_widget.layout().insertWidget(
+            self._component_options_widget.layout().count() - 1, label
+        )
+        self._component_options_widget.layout().insertWidget(
+            self._component_options_widget.layout().count() - 1, widget
+        )
 
 
 class PublisherAccordionWidget(AccordionBaseWidget):

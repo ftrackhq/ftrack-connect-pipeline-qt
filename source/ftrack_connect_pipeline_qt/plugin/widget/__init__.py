@@ -82,7 +82,7 @@ class BaseOptionsWidget(QtWidgets.QWidget):
     def _set_internal_run_result(self, data):
         '''Calls the function on_{method}_callback with values returned
         from *data*, raises not implemented error if the composed name of the
-        method from *data* doesn't exists'''
+        method from *data* doesn't exist'''
         method = "on_{}_callback".format(list(data.keys())[0])
         result = data.get(list(data.keys())[0])
         if hasattr(self, method):

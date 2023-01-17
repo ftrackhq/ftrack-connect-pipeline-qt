@@ -10,6 +10,7 @@ based on a definition, for a given client type.'''
 UI_OVERRIDES = {
     'progress_widget': default_widgets.ProgressWidgetObject,
     'progress_widget.loader': default_widgets.BatchProgressWidget,
+    'progress_widget.batch_publisher': default_widgets.BatchProgressWidget,
     'main_widget': default_widgets.DefaultMainWidgetObject,
     core_constants.CONTEXTS: {
         'step_container': default_widgets.DefaultStepContainerWidgetObject,

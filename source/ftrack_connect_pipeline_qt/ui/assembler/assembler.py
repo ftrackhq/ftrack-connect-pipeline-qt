@@ -1,9 +1,6 @@
 # :coding: utf-8
 # :copyright: Copyright (c) 2014-2022 ftrack
 import os
-import json
-import copy
-import time
 
 from functools import partial
 
@@ -210,7 +207,6 @@ class AssemblerDependenciesWidget(AssemblerBaseWidget):
         # Create component list
         self._component_list = DependenciesListWidget(self)
         self.listWidgetCreated.emit(self._component_list)
-        # self._asset_list.setStyleSheet('background-color: blue;')
 
         self.scroll.setWidget(self._component_list)
 
@@ -648,10 +644,7 @@ class DependenciesListWidget(AssemblerListBaseWidget):
             component_widget.set_component_and_definitions(
                 component, definitions
             )
-            self.layout().addWidget(component_widget)
-            component_widget.clicked.connect(
-                partial(self.asset_clicked, component_widget)
-            )
+            self.add_widget(component_widget)
 
         self.layout().addWidget(QtWidgets.QLabel(), 1000)
         self.refreshed.emit()
@@ -728,9 +721,8 @@ class BrowserListWidget(AssemblerListBaseWidget):
 
         component_widget.set_component_and_definitions(component, definitions)
 
-        component_widget.clicked.connect(
-            partial(self.asset_clicked, component_widget)
-        )
+        self.setup_widget(component_widget)
+
         component_widget.versionChanged.connect(
             partial(self._on_version_change, component_widget)
         )

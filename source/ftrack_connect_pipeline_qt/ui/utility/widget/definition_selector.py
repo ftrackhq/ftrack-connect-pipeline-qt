@@ -1,6 +1,7 @@
 # :coding: utf-8
 # :copyright: Copyright (c) 2015-2022 ftrack
 import logging
+import re
 
 from Qt import QtWidgets, QtCore
 
@@ -22,14 +23,14 @@ class DefinitionSelectorBase(QtWidgets.QWidget):
     refreshed = QtCore.Signal()  # Widget has been refreshed
 
     @property
-    def definition_title_filters(self):
+    def definition_filters(self):
         '''Return the list of definition title filters'''
-        return self._definition_title_filters
+        return self._definition_filters
 
-    @definition_title_filters.setter
-    def definition_title_filters(self, value):
+    @definition_filters.setter
+    def definition_filters(self, value):
         '''Set the list of definition title filters to *value*'''
-        self._definition_title_filters = value
+        self._definition_filters = value
 
     @property
     def definition_extensions_filter(self):
@@ -54,6 +55,11 @@ class DefinitionSelectorBase(QtWidgets.QWidget):
         else:
             self._on_change_definition(value)
 
+    @property
+    def definition_widget(self):
+        '''Return the definition widget'''
+        return self._definition_widget
+
     def __init__(self, parent=None):
         '''
         Initialize DefinitionSelector widget
@@ -68,7 +74,7 @@ class DefinitionSelectorBase(QtWidgets.QWidget):
 
         self._host_connection = None
         self.schemas = None
-        self._definition_title_filters = None
+        self._definition_filters = None
         self._definition_extensions_filter = None
         self.definitions = []
 
@@ -117,10 +123,14 @@ class DefinitionSelectorBase(QtWidgets.QWidget):
         compatible definitions.'''
         raise NotImplementedError()
 
+    def do_add_empty_definition(self):
+        '''Add an empty definition to the definition selector'''
+        return True
+
     def _on_change_definition(self, index):
         '''A definition has been selected, fire signal for client to pick up'''
         self.definitionChanged.emit(None, None, None)  # Clear widgets
-        if index > 0:
+        if index > 0 if self.do_add_empty_definition() else -1:
             (
                 self.definition,
                 self.component_names_filter,
@@ -207,13 +217,15 @@ class OpenerDefinitionSelector(DefinitionSelectorBase):
         index_latest_version = -1
         compatible_definition_count = 0
 
-        self._definition_selector.addItem("", None)
-        index = 1
+        index = 0
+        if self.do_add_empty_definition():
+            self._definition_selector.addItem("", None)
+            index += 1
 
         for schema in self.schemas:
             schema_title = schema.get('title').lower()
-            if self._definition_title_filters:
-                if not schema_title in self._definition_title_filters:
+            if self._definition_filters:
+                if not schema_title in self._definition_filters:
                     continue
             items = self._host_connection.definitions.get(schema_title)
             self.definitions = items
@@ -309,7 +321,7 @@ class OpenerDefinitionSelector(DefinitionSelectorBase):
                                 latest_version = asset_version
                                 index_latest_version = index
                             break
-                if not self._definition_title_filters:
+                if not self._definition_filters:
                     text = '{} - {}'.format(
                         schema.get('title'), item.get('name')
                     )
@@ -347,29 +359,42 @@ class OpenerDefinitionSelector(DefinitionSelectorBase):
         self._definition_widget.show()
 
 
-class AssemblerDefinitionSelector(DefinitionSelectorBase):
-    '''Definition selector tailored for assembler(loader) client.
+class BatchDefinitionSelector(DefinitionSelectorBase):
+    '''Definition selector tailored for assembler(loader)/batch publisher clients.
     Selection of definitions are disabled, widget is only used for extraction of definitions'''
 
-    def __init__(self, parent=None):
-        super(AssemblerDefinitionSelector, self).__init__(parent=parent)
+    def __init__(self, definition_title_filter_expression=None, parent=None):
+        self._definition_title_filter_expression = (
+            definition_title_filter_expression
+        )
+        super(BatchDefinitionSelector, self).__init__(parent=parent)
+
+    def pre_build(self):
+        super(BatchDefinitionSelector, self).pre_build()
+        self.label_widget = QtWidgets.QLabel("Choose publisher:")
 
     def build_definition_widget(self):
         '''Not used in assembler, build dummy.'''
         self._definition_widget = QtWidgets.QWidget()
         self._definition_widget.setLayout(QtWidgets.QHBoxLayout())
+        self._definition_widget.layout().addWidget(self.label_widget)
         self._definition_selector = DefinitionSelectorComboBox()
         self._definition_selector.setToolTip('Please select a loader')
-        self._definition_widget.layout().addWidget(self._definition_selector)
+        self._definition_widget.layout().addWidget(
+            self._definition_selector, 100
+        )
+
         return self._definition_widget
 
     def post_build(self):
-        super(AssemblerDefinitionSelector, self).post_build()
+        super(BatchDefinitionSelector, self).post_build()
         self._definition_selector.currentIndexChanged.connect(
             self._on_change_definition
         )
-        self.label_widget.setVisible(False)
-        self._definition_widget.setVisible(False)
+
+    def do_add_empty_definition(self):
+        '''Do not add an empty definition to the definition selector'''
+        return False
 
     def populate_definitions(self):
         '''(Override) Simply extract and store loader definitions from schemas'''
@@ -380,11 +405,39 @@ class AssemblerDefinitionSelector(DefinitionSelectorBase):
             return
         for schema in self.schemas:
             schema_title = schema.get('title').lower()
-            if self._definition_title_filters:
-                if not schema_title in self._definition_title_filters:
+            if self._definition_filters:
+                if not schema_title in self._definition_filters:
                     continue
             items = self._host_connection.definitions.get(schema_title)
-            self.definitions = items
+            if self._definition_title_filter_expression is not None:
+                self.definitions = [
+                    item
+                    for item in items
+                    if re.match(
+                        self._definition_title_filter_expression, item['name']
+                    )
+                ]
+            else:
+                self.definitions = items
+
+            index = 0
+            if self.do_add_empty_definition():
+                self._definition_selector.addItem("", None)
+                index += 1
+
+            for item in self.definitions:
+                # Remove ' Publisher/Loader'
+                text = '{}'.format(' '.join(item.get('name').split(' ')[:-1]))
+                component_names_filter = None
+
+                if not self._definition_filters:
+                    text = '{} - {}'.format(
+                        schema.get('title'), item.get('name')
+                    )
+                self._definition_selector.addItem(
+                    text.upper(), (item, component_names_filter)
+                )
+                index += 1
 
 
 class PublisherDefinitionSelector(DefinitionSelectorBase):
@@ -452,8 +505,8 @@ class PublisherDefinitionSelector(DefinitionSelectorBase):
 
         for schema in self.schemas:
             schema_title = schema.get('title').lower()
-            if self._definition_title_filters:
-                if not schema_title in self._definition_title_filters:
+            if self._definition_filters:
+                if not schema_title in self._definition_filters:
                     continue
             items = self._host_connection.definitions.get(schema_title)
             self.definitions = items
@@ -463,7 +516,7 @@ class PublisherDefinitionSelector(DefinitionSelectorBase):
                 text = '{}'.format(' '.join(item.get('name').split(' ')[:-1]))
                 component_names_filter = None  # Outlined openable components
 
-                if not self._definition_title_filters:
+                if not self._definition_filters:
                     text = '{} - {}'.format(
                         schema.get('title'), item.get('name')
                     )
