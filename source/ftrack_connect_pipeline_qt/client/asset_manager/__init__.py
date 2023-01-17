@@ -17,6 +17,7 @@ from ftrack_connect_pipeline_qt.ui.utility.widget import (
     host_selector,
     line,
     scroll_area,
+    tab,
 )
 from ftrack_connect_pipeline_qt.ui.asset_manager.asset_manager import (
     AssetManagerWidget,
@@ -55,6 +56,28 @@ class QtAssetManagerClientWidget(QtAssetManagerClient, QtWidgets.QFrame):
         object, object
     )  # A message, with a title amended, has been picked up from the asset management subsystem
 
+    @property
+    def main_asset_manager(self):
+        return self._main_asset_manager
+
+    @main_asset_manager.setter
+    def main_asset_manager(self, value):
+        self._main_asset_manager = value
+
+    @property
+    def snapshot_asset_manager(self):
+        return self._snapshot_asset_manager
+
+    @snapshot_asset_manager.setter
+    def snapshot_asset_manager(self, value):
+        self._snapshot_asset_manager = value
+
+    @property
+    def asset_manager(self):
+        if self.snapshot_asset_manager is None:
+            return self.main_asset_manager
+        # TODO: Return the selected asset manager
+
     def __init__(
         self,
         event_manager,
@@ -81,6 +104,8 @@ class QtAssetManagerClientWidget(QtAssetManagerClient, QtWidgets.QFrame):
             self, event_manager, multithreading_enabled=multithreading_enabled
         )
 
+        self._main_asset_manager = None
+        self._snapshot_asset_manager = None
         self.is_assembler = is_assembler
 
         ''' Flag telling if widget has been shown before and needs refresh '''
@@ -116,12 +141,20 @@ class QtAssetManagerClientWidget(QtAssetManagerClient, QtWidgets.QFrame):
         self.layout().setContentsMargins(0, 0, 0, 0)
         self.layout().setSpacing(0)
 
-        self.asset_manager_widget = AssetManagerWidget(
+        self.main_asset_manager = AssetManagerWidget(
             self, self._asset_list_model
+        )
+
+        self.snapshot_asset_manager = (
+            self.build_snapshot_asset_manager_widget()
         )
 
         if self.is_assembler:
             set_property(self, 'assembler', 'true')
+
+    def build_snapshot_asset_manager_widget(self):
+        '''(Optional) Build snapshot asset manager widget, should be implemented by child DCC'''
+        return None
 
     def build(self):
         '''Build widgets and parent them.'''
@@ -141,9 +174,27 @@ class QtAssetManagerClientWidget(QtAssetManagerClient, QtWidgets.QFrame):
 
             self.layout().addWidget(line.Line())
 
-        self.scroll = scroll_area.ScrollArea()
-        self.scroll.setWidgetResizable(True)
-        self.layout().addWidget(self.scroll, 100)
+        self._main_scroll = scroll_area.ScrollArea()
+        self._main_scroll.setWidgetResizable(True)
+        if self.snapshot_asset_manager is None:
+            # No snapshot asset manager, deploy to a single scroll area
+            self.layout().addWidget(self._main_scroll, 100)
+        else:
+            self._tab_widget = AssetManagerTabWidget()
+            self._tab_widget.setFocusPolicy(QtCore.Qt.NoFocus)
+            # First add main asset manager scroll area
+            self._tab_widget.addTab(
+                self._main_scroll, self.snapshot_asset_manager.get_tab_name()
+            )
+
+            # Then add snapshot asset manager scroll area
+            self._snapshot_scroll = scroll_area.ScrollArea()
+            self._snapshot_scroll.setWidgetResizable(True)
+            self._tab_widget.addTab(
+                self._snapshot_scroll, self.snapshot_asset_manager
+            )
+
+            self.layout().addWidget(self._tab_widget, 100)
 
         if self.is_assembler:
             button_widget = QtWidgets.QWidget()
@@ -205,7 +256,6 @@ class QtAssetManagerClientWidget(QtAssetManagerClient, QtWidgets.QFrame):
     def on_host_changed(self, host_connection):
         '''Triggered when client has set host connection'''
         self._reset_asset_list()
-        # self.asset_manager_widget.set_asset_list(self.asset_entities_list)
         if not host_connection:
             return
 
@@ -223,7 +273,7 @@ class QtAssetManagerClientWidget(QtAssetManagerClient, QtWidgets.QFrame):
         self.asset_manager_widget.engine_type = self.engine_type
         self.asset_manager_widget.set_context_actions(self.menu_action_plugins)
 
-        self.scroll.setWidget(self.asset_manager_widget)
+        self._main_scroll.setWidget(self.asset_manager_widget)
 
     # Context
 
@@ -581,3 +631,8 @@ class QtAssetManagerClientWidget(QtAssetManagerClient, QtWidgets.QFrame):
                 self.asset_manager_widget.client_notification_subscribe_id
             )
             self.asset_manager_widget.client_notification_subscribe_id = None
+
+
+class AssetManagerTabWidget(tab.TabWidget):
+    def __init__(self, parent=None):
+        super(AssetManagerTabWidget, self).__init__(parent=parent)

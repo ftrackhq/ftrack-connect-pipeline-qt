@@ -37,39 +37,6 @@ from ftrack_connect_pipeline_qt.ui.utility.widget.button import ApproveButton
 class AssetManagerWidget(AssetManagerBaseWidget):
     '''Asset manager widget that lives within the asset manager client'''
 
-    refresh = QtCore.Signal()  # Refresh asset list from model
-    rebuild = QtCore.Signal()  # Fetch assets from DCC and update model
-
-    changeAssetVersion = QtCore.Signal(
-        object, object
-    )  # User has requested a change of asset version
-    selectAssets = QtCore.Signal(object, object)  # Select assets in DCC
-    removeAssets = QtCore.Signal(object, object)  # Remove assets from DCC
-    updateAssets = QtCore.Signal(
-        object, object
-    )  # Update DCC assets to latest version
-    loadAssets = QtCore.Signal(object, object)  # Load assets into DCC
-    unloadAssets = QtCore.Signal(object, object)  # Unload assets from DCC
-
-    stopBusyIndicator = QtCore.Signal()  # Stop spinner and hide it
-
-    DEFAULT_ACTIONS = {
-        'select': [{'ui_callback': 'ctx_select', 'name': 'select_asset'}],
-        'remove': [{'ui_callback': 'ctx_remove', 'name': 'remove_asset'}],
-        'load': [{'ui_callback': 'ctx_load', 'name': 'load_asset'}],
-        'unload': [{'ui_callback': 'ctx_unload', 'name': 'unload_asset'}],
-    }
-
-    @property
-    def asset_list(self):
-        '''Return asset list widget'''
-        return self._asset_list
-
-    @property
-    def host_connection(self):
-        '''Return the host connection'''
-        return self._client.host_connection
-
     def __init__(self, asset_manager_client, asset_list_model, parent=None):
         '''
         Initialize the asset manager widget
@@ -78,11 +45,9 @@ class AssetManagerWidget(AssetManagerBaseWidget):
         :param asset_list_model: : instance of :class:`~ftrack_connect_pipeline_qt.ui.asset_manager.model.AssetListModel`
         :param parent:  The parent dialog or window
         '''
-        self._client = asset_manager_client
         self.client_notification_subscribe_id = None
         super(AssetManagerWidget, self).__init__(
-            asset_manager_client.is_assembler,
-            asset_manager_client.event_manager,
+            asset_manager_client,
             asset_list_model,
             parent=parent,
         )
@@ -164,7 +129,7 @@ class AssetManagerWidget(AssetManagerBaseWidget):
         '''(Override)'''
         self._build_docked_header(
             layout
-        ) if not self._is_assembler else self._build_assembler_header(layout)
+        ) if not self.is_assembler else self._build_assembler_header(layout)
 
     def build(self):
         '''(Override)'''
@@ -256,7 +221,7 @@ class AssetManagerWidget(AssetManagerBaseWidget):
         self.menu = QtWidgets.QMenu(self)
         self.action_type_menu = {}
         for action_type, action_widgets in list(self.action_widgets.items()):
-            if not self._is_assembler and action_type == 'remove':
+            if not self.is_assembler and action_type == 'remove':
                 continue  # Can only remove from is_assembler
             if action_type not in list(self.action_type_menu.keys()):
                 type_menu = QtWidgets.QMenu(action_type.title(), self)
@@ -420,7 +385,7 @@ class AssetManagerWidget(AssetManagerBaseWidget):
 
     def _on_asset_list_refreshed(self):
         '''List has refreshed from model'''
-        if self._is_assembler:
+        if self.is_assembler:
             self._label_info.setText(
                 'Listing {} asset{}'.format(
                     self._asset_list.model.rowCount(),

@@ -15,15 +15,53 @@ from ftrack_connect_pipeline_qt.ui.utility.widget import scroll_area
 class AssetManagerBaseWidget(QtWidgets.QWidget):
     '''Base widget of the asset manager'''
 
+    refresh = QtCore.Signal()  # Refresh asset list from model
+    rebuild = QtCore.Signal()  # Fetch assets from DCC and update model
+
+    changeAssetVersion = QtCore.Signal(
+        object, object
+    )  # User has requested a change of asset version
+    selectAssets = QtCore.Signal(object, object)  # Select assets in DCC
+    removeAssets = QtCore.Signal(object, object)  # Remove assets from DCC
+    updateAssets = QtCore.Signal(
+        object, object
+    )  # Update DCC assets to latest version
+    loadAssets = QtCore.Signal(object, object)  # Load assets into DCC
+    unloadAssets = QtCore.Signal(object, object)  # Unload assets from DCC
+
+    stopBusyIndicator = QtCore.Signal()  # Stop spinner and hide it
+
+    DEFAULT_ACTIONS = {
+        'select': [{'ui_callback': 'ctx_select', 'name': 'select_asset'}],
+        'remove': [{'ui_callback': 'ctx_remove', 'name': 'remove_asset'}],
+        'load': [{'ui_callback': 'ctx_load', 'name': 'load_asset'}],
+        'unload': [{'ui_callback': 'ctx_unload', 'name': 'unload_asset'}],
+    }
+
+    @property
+    def client(self):
+        '''Return asset list widget'''
+        return self._client
+
+    @property
+    def is_assembler(self):
+        '''Return asset list widget'''
+        return self._client.is_assembler
+
+    @property
+    def asset_list(self):
+        '''Return asset list widget'''
+        return self._asset_list
+
+    @property
+    def host_connection(self):
+        '''Return the host connection'''
+        return self._client.host_connection
+
     @property
     def event_manager(self):
         '''Returns event_manager'''
-        return self._event_manager
-
-    @property
-    def session(self):
-        '''Returns Session'''
-        return self.event_manager.session
+        return self.client.event_manager
 
     @property
     def engine_type(self):
@@ -35,9 +73,12 @@ class AssetManagerBaseWidget(QtWidgets.QWidget):
         '''Sets the engine_type with the given *value*'''
         self._engine_type = value
 
-    def __init__(
-        self, is_assembler, event_manager, asset_list_model, parent=None
-    ):
+    @property
+    def session(self):
+        '''Returns Session'''
+        return self.event_manager.session
+
+    def __init__(self, asset_manager_client, asset_list_model, parent=None):
         '''
         Initialize asset manager widget
 
@@ -48,8 +89,7 @@ class AssetManagerBaseWidget(QtWidgets.QWidget):
         '''
         super(AssetManagerBaseWidget, self).__init__(parent=parent)
 
-        self._is_assembler = is_assembler
-        self._event_manager = event_manager
+        self._client = asset_manager_client
         self._asset_list_model = asset_list_model
         self._engine_type = None
 
@@ -81,6 +121,10 @@ class AssetManagerBaseWidget(QtWidgets.QWidget):
         self.scroll.setHorizontalScrollBarPolicy(QtCore.Qt.ScrollBarAlwaysOff)
         self.layout().addWidget(self.scroll, 100)
 
+    def get_tab_name(self):
+        '''Return the name of the tab, if multiple tabs are used. Can be overridden by child'''
+        return 'ftrack Assets'
+
     def post_build(self):
         '''Post Build ui method for events connections.'''
         pass
@@ -88,7 +132,7 @@ class AssetManagerBaseWidget(QtWidgets.QWidget):
     def init_search(self):
         '''Create search input'''
         self._search = Search(
-            collapsed=self._is_assembler, collapsable=self._is_assembler
+            collapsed=self.is_assembler, collapsable=self.is_assembler
         )
         self._search.inputUpdated.connect(self.on_search)
         return self._search
