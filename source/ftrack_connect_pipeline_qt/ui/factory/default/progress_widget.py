@@ -66,6 +66,7 @@ class PhaseButton(QtWidgets.QPushButton):
         self.log_widget.layout().addSpacing(10)
 
         self.log_text_edit = QtWidgets.QTextEdit()
+        self.log_text_edit.setReadOnly(True)
         self.log_widget.layout().addWidget(self.log_text_edit, 10)
         self._close_button = (
             ftrack_connect_pipeline_qt.ui.utility.widget.button.ApproveButton(

@@ -36,6 +36,7 @@ from ftrack_connect_pipeline_qt.ui.asset_manager.base import (
 class BatchPublisherBaseWidget(QtWidgets.QWidget):
 
     listWidgetCreated = QtCore.Signal(object)
+    itemPublished = QtCore.Signal(object)
 
     @property
     def client(self):
@@ -50,7 +51,7 @@ class BatchPublisherBaseWidget(QtWidgets.QWidget):
     @property
     def level(self):
         '''The recursive level of this batch publisher widget.'''
-        return self._level
+        return self._level if not self._level is None else 0
 
     @property
     def session(self):
@@ -60,7 +61,7 @@ class BatchPublisherBaseWidget(QtWidgets.QWidget):
     def logger(self):
         return self._client.logger
 
-    def __init__(self, client, initial_items, level=0, parent=None):
+    def __init__(self, client, initial_items, level=None, parent=None):
         self._client = client
         self._initial_items = initial_items
         self._level = level
@@ -103,7 +104,7 @@ class BatchPublisherBaseWidget(QtWidgets.QWidget):
 
     def post_build(self):
         '''Build widget.'''
-        pass
+        self.itemPublished.connect(self._on_item_published)
 
     def on_context_changed(self, context_id):
         '''Handle context change, should be overridden'''
@@ -144,9 +145,9 @@ class BatchPublisherBaseWidget(QtWidgets.QWidget):
             self._label_info.setText(
                 '{} {}'.format(
                     self.model.rowCount(),
-                    'dependencies'
-                    if self.model.rowCount() > 1
-                    else 'dependency',
+                    'dependency'
+                    if self.model.rowCount() == 1
+                    else 'dependencies',
                 )
             )
 
@@ -194,6 +195,7 @@ class BatchPublisherBaseWidget(QtWidgets.QWidget):
             )
             factory.build_progress_ui(item_widget.item_id)
 
+            item_widget.has_run = False
             self.client.run_queue.put(item_widget)
 
             # Recursively add dependencies to progress widget and queue up
@@ -259,6 +261,10 @@ class BatchPublisherBaseWidget(QtWidgets.QWidget):
 
         # Run definition in background thread
         self.client.run_queue_async.put((item_widget, definition))
+
+    def _on_item_published(self, item_widget):
+        '''Executed when an item has been published, to be overridden by child'''
+        pass
 
     def run_post(self):
         '''Summarize counts and store'''
@@ -370,10 +376,6 @@ class ItemBaseWidget(AccordionBaseWidget):
         self._adjust_height()
 
     @property
-    def session(self):
-        return self._batch_publisher_widget.session
-
-    @property
     def batch_publisher_widget(self):
         '''Return the parent batch publisher widget'''
         return self._batch_publisher_widget
@@ -387,6 +389,20 @@ class ItemBaseWidget(AccordionBaseWidget):
     def item_id(self):
         '''Return the unique temporary batch publisher id of this item'''
         return self._item_id
+
+    @property
+    def has_run(self):
+        '''Return the unique temporary batch publisher id of this item'''
+        return self._has_run
+
+    @has_run.setter
+    def has_run(self, value):
+        '''Set the unique temporary batch publisher id of this item'''
+        self._has_run = value
+
+    @property
+    def session(self):
+        return self._batch_publisher_widget.session
 
     @property
     def logger(self):
@@ -410,6 +426,7 @@ class ItemBaseWidget(AccordionBaseWidget):
         '''
         self._batch_publisher_widget = batch_publisher_widget
         self._item_id = str(uuid.uuid4())
+        self._has_run = False
         super(ItemBaseWidget, self).__init__(
             AccordionBaseWidget.SELECT_MODE_LIST,
             AccordionBaseWidget.CHECK_MODE_CHECKBOX,

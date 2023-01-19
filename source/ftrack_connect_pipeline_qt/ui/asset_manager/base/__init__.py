@@ -141,6 +141,8 @@ class AssetManagerBaseWidget(QtWidgets.QWidget):
             self._splitter = QtWidgets.QSplitter(QtCore.Qt.Horizontal)
             self._splitter.addWidget(self.scroll)
             self._splitter.addWidget(self.snapshot_scroll)
+            self._splitter.setStretchFactor(0, 1)
+            self._splitter.setStretchFactor(1, 1)
             self._splitter.setHandleWidth(1)
 
             self.layout().addWidget(self._splitter, 100)
@@ -251,6 +253,17 @@ class AssetListWidget(QtWidgets.QWidget):
                         # Data has changed
                         return None
                     result.append(data)
+        return result
+
+    def items(self):
+        '''Return a list of all tuples, (data, widget), of all assets in list'''
+        result = []
+        for widget in self.assets:
+            data = self.model.data(widget.index)
+            if data is None:
+                # Data has changed
+                return None
+            result.append((data, widget))
         return result
 
     def clear_selection(self):

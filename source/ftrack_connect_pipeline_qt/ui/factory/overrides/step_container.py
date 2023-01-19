@@ -28,7 +28,7 @@ class GroupBoxStepContainerWidgetObject(BaseUIWidgetObject):
 
 
 class AccordionStepContainerWidgetObject(BaseUIWidgetObject):
-    '''Widget representation of a accordion container of schema steps (components)'''
+    '''Widget representation of an accordion container of schema steps (components)'''
 
     def __init__(self, name, fragment_data, parent=None):
         '''Initialise JsonBoolean with *name*,
@@ -42,6 +42,7 @@ class AccordionStepContainerWidgetObject(BaseUIWidgetObject):
         self._widget = AccordionWidget(
             title="{}: 0 components selected".format(self._name),
             checkable=False,
+            checked=self.enabled,
             collapsed=False,
         )
 

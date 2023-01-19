@@ -293,7 +293,7 @@ class QtAssetManagerClientWidget(QtAssetManagerClient, QtWidgets.QFrame):
             for ftrack_asset in event['data']:
                 target_list = (
                     asset_entities_list
-                    if not ftrack_asset.is_snapshot
+                    if not ftrack_asset.get(asset_const.IS_SNAPSHOT) is True
                     else snapshot_asset_entities_list
                 )
                 target_list.append(ftrack_asset)

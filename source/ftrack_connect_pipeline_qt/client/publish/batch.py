@@ -47,8 +47,8 @@ class QtBatchPublisherClientWidget(QtPublisherClient, dialog.Dialog):
 
     @property
     def initial_items(self):
-        '''Return list of supplied initial items to publish'''
-        return self._initial_items
+        '''Return list of supplied initial items to publish, supplied to client on instantiation.'''
+        return self._initial_items or []
 
     def __init__(
         self,
@@ -94,7 +94,8 @@ class QtBatchPublisherClientWidget(QtPublisherClient, dialog.Dialog):
         return False
 
     def reset_processed_items(self):
-        '''Keep track of processed items to prevent duplicates and cycles'''
+        '''Keep track of processed items to prevent duplicates and cycles. If *include_initial_items* is true,
+        the initial items will be included in the processed items list.'''
         self._processed_items = []
 
     def check_add_processed_items(self, item):
@@ -318,6 +319,11 @@ class QtBatchPublisherClientWidget(QtPublisherClient, dialog.Dialog):
                     item_widget.batch_publisher_widget.failed += 1
                 else:
                     item_widget.batch_publisher_widget.succeeded += 1
+                    item_widget.has_run = True
+                    # Have the batch publisher widget post process the item
+                    item_widget.batch_publisher_widget.itemPublished.emit(
+                        item_widget
+                    )
 
             except Exception as e:
                 self.logger.warning(traceback.format_exc())

@@ -217,6 +217,7 @@ class PublisherAccordionWidget(AccordionBaseWidget):
     def post_build(self):
         self.update_input(self._input_message, self._input_status)
         super(PublisherAccordionWidget, self).post_build()
+        self.header.title_label.setObjectName('h3')
 
     def _connect_inner_widgets(self, widget):
         if issubclass(widget.__class__, BaseOptionsWidget):
@@ -262,7 +263,10 @@ class AccordionStepWidgetObject(BaseUIWidgetObject):
 
     def build(self):
         self._widget = AccordionWidget(
-            title="{}".format(self._name), checkable=False, collapsable=False
+            title="{}".format(self._name),
+            checkable=self.optional,
+            checked=self.enabled,
+            collapsable=False,
         )
         self._widget.content.layout().setContentsMargins(0, 10, 0, 0)
 
@@ -302,12 +306,9 @@ class PublisherAccordionStepWidgetObject(BaseUIWidgetObject):
             name, fragment_data, parent=parent
         )
 
-    def pre_build(self):
-        self._is_optional = self.fragment_data.get('optional')
-
     def build(self):
         self._widget = PublisherAccordionWidget(
-            title=self.name, checkable=self.optional, checked=self._is_selected
+            title=self.name, checkable=self.optional, checked=self.enabled
         )
 
     def parent_validator(self, step_widget):
