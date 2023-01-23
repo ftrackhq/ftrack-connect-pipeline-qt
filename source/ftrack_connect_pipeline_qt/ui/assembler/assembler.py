@@ -386,7 +386,7 @@ class AssemblerBrowserWidget(AssemblerBaseWidget):
             if len(self.parent_ids) > 0:
                 if len(task_sub_query) > 0:
                     task_sub_query = '{} or '.format(task_sub_query)
-                task_sub_query = '{0}task.parent.id in ({1})'.format(
+                task_sub_query = '{0}asset.parent.id in ({1}) or task.parent.id in ({1})'.format(
                     task_sub_query,
                     ','.join(
                         [

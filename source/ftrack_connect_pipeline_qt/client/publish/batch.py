@@ -268,7 +268,7 @@ class QtBatchPublisherClientWidget(QtPublisherClient, dialog.Dialog):
         self._stop_run = False
 
         # Spawn background thread
-        thread = threading.Thread(target=self._background_worker)
+        thread = threading.Thread(target=self._relay_run_signals_async)
         thread.start()
 
         self.progress_widget.prepare_add_steps()
@@ -297,7 +297,7 @@ class QtBatchPublisherClientWidget(QtPublisherClient, dialog.Dialog):
         # Have Qt process events / paint widgets, relay over background thread
         self._run_queue_async.put((item_widget, definition))
 
-    def _background_worker(self):
+    def _relay_run_signals_async(self):
         '''Background thread running a loop polling for items and their definition to run, emitting run event'''
 
         while not self._stop_run:

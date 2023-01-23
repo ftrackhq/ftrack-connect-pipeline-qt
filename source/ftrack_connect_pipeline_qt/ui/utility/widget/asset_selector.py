@@ -75,14 +75,14 @@ class AssetList(QtWidgets.QListWidget):
 
         thread = BaseThread(
             name='get_assets_thread',
-            target=self._query_assets_from_context,
-            callback=self._store_assets,
+            target=self._query_assets_from_context_async,
+            callback=self._store_assets_async,
             target_args=(context_id, asset_type_name),
         )
         thread.start()
 
-    def _query_assets_from_context(self, context_id, asset_type_name):
-        '''(Run in background thread) Fetch assets from current context'''
+    def _query_assets_from_context_async(self, context_id, asset_type_name):
+        '''(Run async) Fetch assets from current context'''
         asset_type_entity = self.session.query(
             'select name from AssetType where short is "{}"'.format(
                 asset_type_name
@@ -111,8 +111,8 @@ class AssetList(QtWidgets.QListWidget):
             ).all()
         return assets
 
-    def _store_assets(self, assets):
-        '''Async, store assets and add through signal'''
+    def _store_assets_async(self, assets):
+        '''Async, store assets and emit signal to have assets added to list'''
         self.assets = assets
         # Add data placeholder for new asset input
         self.assetsQueryDone.emit()

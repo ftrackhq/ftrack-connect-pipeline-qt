@@ -50,7 +50,7 @@ class PluginAccordion(AccordionBaseWidget):
 
 
 class AccordionPluginContainerWidgetObject(BaseUIWidgetObject):
-    '''Widget representation of a accordion plugin container'''
+    '''Widget representation of an accordion plugin container'''
 
     def __init__(self, name, fragment_data, parent=None):
         '''Initialise AccordionPluginContainerWidgetObject with *name*,

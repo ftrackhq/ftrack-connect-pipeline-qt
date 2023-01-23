@@ -134,7 +134,7 @@ class AssetList(QtWidgets.QListWidget):
         self.setSpacing(1)
         self.assets = []
 
-    def _query_assets_from_context(self, context_id, asset_type_name):
+    def _query_assets_from_context_async(self, context_id, asset_type_name):
         '''(Run in background thread) Fetch assets from current context'''
         self._context_id = context_id
         self._asset_type_name = asset_type_name
@@ -152,7 +152,7 @@ class AssetList(QtWidgets.QListWidget):
         ).all()
         return assets
 
-    def _store_assets(self, assets):
+    def _store_assets_async(self, assets):
         '''(Called from background thread) store assets and add through signal'''
         self.assets = assets
         # Add data placeholder for new asset input
@@ -162,6 +162,8 @@ class AssetList(QtWidgets.QListWidget):
         '''Add fetched assets to list'''
         self.clear()
         for asset_entity in self.assets:
+            import threading
+
             widget = AssetVersionListItem(
                 self._context_id,
                 asset_entity,
@@ -185,8 +187,8 @@ class AssetList(QtWidgets.QListWidget):
 
         thread = BaseThread(
             name='get_assets_thread',
-            target=self._query_assets_from_context,
-            callback=self._store_assets,
+            target=self._query_assets_from_context_async,
+            callback=self._store_assets_async,
             target_args=(context_id, asset_type_name),
         )
         thread.start()
@@ -198,10 +200,17 @@ class AssetList(QtWidgets.QListWidget):
         self._size_changed()
 
     def _size_changed(self):
-        self.setFixedSize(
-            self.size().width() - 1,
-            self.sizeHintForRow(0) * self.count() + 2 * self.frameWidth(),
+        print(
+            '@@@ {} x {}, self.sizeHintForRow(0): {}'.format(
+                self.size().width() - 1,
+                self.sizeHintForRow(0) * self.count() + 2 * self.frameWidth(),
+                self.sizeHintForRow(0),
+            )
         )
+        # self.setFixedSize(
+        #     self.size().width() - 1,
+        #     self.sizeHintForRow(0) * self.count() + 2 * self.frameWidth(),
+        # )
 
 
 class AssetListSelector(QtWidgets.QFrame):
