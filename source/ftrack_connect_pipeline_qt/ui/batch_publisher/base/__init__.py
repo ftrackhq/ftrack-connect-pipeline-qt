@@ -196,7 +196,7 @@ class BatchPublisherBaseWidget(QtWidgets.QWidget):
             factory.build_progress_ui(item_widget.item_id)
 
             item_widget.has_run = False
-            self.client.run_queue.put(item_widget)
+            self.client.prepare_queue.put(item_widget)
 
             # Recursively add dependencies to progress widget and queue up
             if item_widget.dependencies_batch_publisher_widget is not None:
@@ -213,10 +213,10 @@ class BatchPublisherBaseWidget(QtWidgets.QWidget):
         progress_widget.show_widget()
 
         # Trig start of execution
-        self.client.runNextItem.emit()
+        self.client.prepareNextItem.emit()
 
-    def run_item(self, item_widget):
-        '''Publish a single item'''
+    def prepare_item(self, item_widget):
+        '''Prepare publish of a  single item'''
 
         self.logger.info('Publishing {}'.format(item_widget.get_ident()))
         progress_widget = self.client.progress_widget
@@ -255,12 +255,55 @@ class BatchPublisherBaseWidget(QtWidgets.QWidget):
             self.failed += 1
 
             # Run next item
-            self.client.runNextItem.emit()
+            self.client.prepareNextItem.emit()
 
             return
 
-        # Run definition in background thread
-        self.client.run_queue_async.put((item_widget, definition))
+        self.client.queueNextItem.emit(item_widget, definition)
+
+    def run_item(self, item_widget, definition):
+        '''Publish a single item'''
+
+        try:
+            factory = item_widget.factory
+            factory.listen_widget_updates()
+
+            # Make sure item widget can react and extract metadata when publish has finished
+            self.client.set_run_callback_function(
+                partial(
+                    item_widget.run_callback,
+                    item_widget,
+                )
+            )
+
+            item_widget.finalizer_user_data = None
+
+            engine_type = definition['_config']['engine_type']
+
+            # Run the definition, status feedback will come in async but pushed to main thread by factory
+            self.client.run_definition(definition, engine_type)
+
+            # Did publish succeed?
+            if factory.has_error:
+                item_widget.batch_publisher_widget.failed += 1
+            else:
+                item_widget.batch_publisher_widget.succeeded += 1
+                item_widget.has_run = True
+                # Have the batch publisher widget post process the item
+                item_widget.batch_publisher_widget.itemPublished.emit(
+                    item_widget
+                )
+
+        except Exception as e:
+            self.logger.warning(traceback.format_exc())
+            item_widget.batch_publisher_widget.failed += 1
+
+        finally:
+            self.client.set_run_callback_function(None)
+            item_widget.factory.end_widget_updates()
+
+            # Run next item in queue regardless of failure
+            self.client.prepareNextItem.emit()
 
     def _on_item_published(self, item_widget):
         '''Executed when an item has been published, to be overridden by child'''

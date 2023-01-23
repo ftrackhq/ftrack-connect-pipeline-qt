@@ -42,7 +42,9 @@ class QtBatchPublisherClientWidget(QtPublisherClient, dialog.Dialog):
     contextChanged = QtCore.Signal(object)  # Context has changed
     definitionsPopulated = QtCore.Signal(object)
 
-    runNextItem = QtCore.Signal()
+    prepareNextItem = QtCore.Signal()
+    queueNextItem = QtCore.Signal(object, object)
+    runNextItem = QtCore.Signal(object, object)
     runPost = QtCore.Signal()
 
     @property
@@ -163,6 +165,8 @@ class QtBatchPublisherClientWidget(QtPublisherClient, dialog.Dialog):
         self.run_button.setFocus()
         self.run_button.clicked.connect(self.run)
 
+        self.prepareNextItem.connect(self.prepare_next_item)
+        self.queueNextItem.connect(self.queue_next_item)
         self.runNextItem.connect(self.run_next_item)
         self.runPost.connect(self.run_post)
 
@@ -256,10 +260,10 @@ class QtBatchPublisherClientWidget(QtPublisherClient, dialog.Dialog):
             )
             return
 
-        # Setup queue if items to publish
-        self.run_queue = queue.Queue()
-        # Queue with items to publish in background thread
-        self.run_queue_async = queue.Queue()
+        # Setup queue if items to prepare and publish
+        self.prepare_queue = queue.Queue()
+        # Queued up (item_widget, definition) tuples to run, processed by background worker
+        self._run_queue_async = queue.Queue()
 
         self._stop_run = False
 
@@ -274,79 +278,57 @@ class QtBatchPublisherClientWidget(QtPublisherClient, dialog.Dialog):
 
         self.batch_publisher_widget.run()
 
-    def run_next_item(self):
-        '''Pull one item from the queue and run it'''
-        if self.run_queue.empty():
+    def prepare_next_item(self):
+        '''Pull one item from the queue and prepare it to be run'''
+        if self.prepare_queue.empty():
             self.runPost.emit()
             return
+        if self._stop_run:
+            return
 
-        item_widget = self.run_queue.get()
+        item_widget = self.prepare_queue.get()
 
-        item_widget.batch_publisher_widget.run_item(item_widget)
+        item_widget.batch_publisher_widget.prepare_item(item_widget)
+
+    def queue_next_item(self, item_widget, definition):
+        '''Queue the publish run of *item_widget* and *definition*'''
+        if self._stop_run:
+            return
+        # Have Qt process events / paint widgets, relay over background thread
+        self._run_queue_async.put((item_widget, definition))
 
     def _background_worker(self):
-        '''Background thread running a loop polling for items and their definition to run'''
+        '''Background thread running a loop polling for items and their definition to run, emitting run event'''
 
         while not self._stop_run:
             # Get item to run
-            if self.run_queue_async.empty():
+            if self._run_queue_async.empty():
                 time.sleep(0.2)
                 continue
 
-            item_widget, definition = self.run_queue_async.get()
+            item_widget, definition = self._run_queue_async.get()
 
-            try:
-                factory = item_widget.factory
-                factory.listen_widget_updates()
+            self.runNextItem.emit(item_widget, definition)
 
-                # Make sure item widget can react and extract metadata when publish has finished
-                self.set_run_callback_function(
-                    partial(
-                        item_widget.run_callback,
-                        item_widget,
-                    )
-                )
-
-                item_widget.finalizer_user_data = None
-
-                engine_type = definition['_config']['engine_type']
-
-                # Run the definition, status feedback will come in async but pushed to main thread by factory
-                self.run_definition(definition, engine_type)
-
-                # Did publish succeed?
-                if factory.has_error:
-                    item_widget.batch_publisher_widget.failed += 1
-                else:
-                    item_widget.batch_publisher_widget.succeeded += 1
-                    item_widget.has_run = True
-                    # Have the batch publisher widget post process the item
-                    item_widget.batch_publisher_widget.itemPublished.emit(
-                        item_widget
-                    )
-
-            except Exception as e:
-                self.logger.warning(traceback.format_exc())
-                item_widget.batch_publisher_widget.failed += 1
-
-            finally:
-                self.set_run_callback_function(None)
-                item_widget.factory.end_widget_updates()
-
-                # Run next item in queue
-                self.runNextItem.emit()
+    def run_next_item(self, item_widget, definition):
+        '''Run the publish of the *item_widget* using *definition*'''
+        if self._stop_run:
+            return
+        item_widget.batch_publisher_widget.run_item(item_widget, definition)
 
     def run_abort(self):
         '''Abort batch publisher - empty queue'''
         if not self._stop_run:
-            if self.run_queue is not None:
-                self.run_queue.queue.clear()
+            if self.prepare_queue is not None:
+                self.prepare_queue.queue.clear()
+            if self._run_queue_async is not None:
+                self._run_queue_async.queue.clear()
             self.logger.warning('Aborted batch publish')
 
     def run_post(self):
         '''All items has been published, post process'''
 
-        self._stop_run = True  # Halt background thread
+        self._stop_run = True
 
         total, succeeded, failed = self.batch_publisher_widget.run_post()
 
