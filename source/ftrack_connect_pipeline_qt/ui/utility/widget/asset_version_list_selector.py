@@ -9,6 +9,9 @@ from ftrack_connect_pipeline_qt.ui.utility.widget import thumbnail
 from ftrack_connect_pipeline_qt.ui.utility.widget.version_selector import (
     VersionComboBox,
 )
+from ftrack_connect_pipeline_qt.ui.utility.widget.busy_indicator import (
+    BusyIndicator,
+)
 
 
 class AssetVersionListItem(QtWidgets.QFrame):
@@ -150,6 +153,20 @@ class AssetList(QtWidgets.QListWidget):
                 context_id, asset_type_entity['id']
             )
         ).all()
+        # Follow context incoming links
+        for tcl in self.session.query(
+            'TypedContextLink where to_id is "{}"'.format(context_id)
+        ):
+            assets.extend(
+                self.session.query(
+                    'select name, versions.task.id, type.id, id, latest_version,'
+                    'latest_version.version, latest_version.date '
+                    'from Asset where versions.asset.parent.id is {} and type.id is {}'.format(
+                        tcl['from_id'], asset_type_entity['id']
+                    )
+                ).all()
+            )
+
         return assets
 
     def _store_assets_async(self, assets):
@@ -200,12 +217,17 @@ class AssetList(QtWidgets.QListWidget):
         self._size_changed()
 
     def _size_changed(self):
-        # TODO: Adjust list size to fit the items in list, the commented code currently does not work in Unreal
         pass
         # self.setFixedSize(
-        #     self.size().width() - 1,
-        #     self.sizeHintForRow(0) * self.count() + 2 * self.frameWidth(),
+        #    self.sizeHintForColumn(0) + 2 * self.frameWidth(),
+        #    self.sizeHintForRow(0) * self.count() + 2 * self.frameWidth(),
         # )
+
+    def sizeHint(self):
+        s = QtCore.QSize()
+        s.setHeight(super(AssetList, self).sizeHint().height())
+        s.setWidth(self.sizeHintForColumn(0))
+        return s
 
 
 class AssetListSelector(QtWidgets.QFrame):
@@ -239,6 +261,9 @@ class AssetListSelector(QtWidgets.QFrame):
             filters=self._filters,
         )
         self.layout().addWidget(self.asset_list)
+        self._busy_widget = BusyIndicator(start=False)
+        self._busy_widget.setVisible(False)
+        self.layout().addWidget(self._busy_widget)
 
     def post_build(self):
         self.asset_list.itemSelectionChanged.connect(self._list_item_changed)
@@ -249,6 +274,9 @@ class AssetListSelector(QtWidgets.QFrame):
     def _refresh(self):
         '''Add assets queried in separate thread to list'''
         self.asset_list.refresh()
+        self._busy_widget.stop()
+        self._busy_widget.setVisible(False)
+        self.asset_list.setVisible(True)
 
     def _pre_select_asset(self):
         '''Assets have been loaded, select most suitable asset to start with
@@ -299,6 +327,9 @@ class AssetListSelector(QtWidgets.QFrame):
 
     def set_context(self, context_id, asset_type_name):
         self.logger.debug('setting context to :{}'.format(context_id))
+        self.asset_list.setVisible(False)
+        self._busy_widget.start()
+        self._busy_widget.setVisible(True)
         self.asset_list.on_context_changed(context_id, asset_type_name)
 
     def _get_context_entity(self, context_id):
