@@ -200,13 +200,8 @@ class AssetList(QtWidgets.QListWidget):
         self._size_changed()
 
     def _size_changed(self):
-        print(
-            '@@@ {} x {}, self.sizeHintForRow(0): {}'.format(
-                self.size().width() - 1,
-                self.sizeHintForRow(0) * self.count() + 2 * self.frameWidth(),
-                self.sizeHintForRow(0),
-            )
-        )
+        # TODO: Adjust list size to fit the items in list, the commented code currently does not work in Unreal
+        pass
         # self.setFixedSize(
         #     self.size().width() - 1,
         #     self.sizeHintForRow(0) * self.count() + 2 * self.frameWidth(),
