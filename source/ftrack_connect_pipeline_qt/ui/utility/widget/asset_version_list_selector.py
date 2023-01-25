@@ -157,15 +157,15 @@ class AssetList(QtWidgets.QListWidget):
         for tcl in self.session.query(
             'TypedContextLink where to_id is "{}"'.format(context_id)
         ):
-            assets.extend(
-                self.session.query(
-                    'select name, versions.task.id, type.id, id, latest_version,'
-                    'latest_version.version, latest_version.date '
-                    'from Asset where versions.asset.parent.id is {} and type.id is {}'.format(
-                        tcl['from_id'], asset_type_entity['id']
-                    )
-                ).all()
-            )
+            for asset in self.session.query(
+                'select name, versions.task.id, type.id, id, latest_version,'
+                'latest_version.version, latest_version.date '
+                'from Asset where versions.asset.parent.id is {} and type.id is {}'.format(
+                    tcl['from_id'], asset_type_entity['id']
+                )
+            ).all():
+                if not asset['id'] in [_asset['id'] for _asset in assets]:
+                    assets.append(asset)
 
         return assets
 
@@ -179,7 +179,7 @@ class AssetList(QtWidgets.QListWidget):
         '''Add fetched assets to list'''
         self.clear()
         for asset_entity in self.assets:
-            import threading
+            print('@@@ asset_entity', asset_entity)
 
             widget = AssetVersionListItem(
                 self._context_id,
@@ -201,7 +201,6 @@ class AssetList(QtWidgets.QListWidget):
 
     def on_context_changed(self, context_id, asset_type_name):
         self.clear()
-
         thread = BaseThread(
             name='get_assets_thread',
             target=self._query_assets_from_context_async,
@@ -217,17 +216,16 @@ class AssetList(QtWidgets.QListWidget):
         self._size_changed()
 
     def _size_changed(self):
-        pass
-        # self.setFixedSize(
-        #    self.sizeHintForColumn(0) + 2 * self.frameWidth(),
-        #    self.sizeHintForRow(0) * self.count() + 2 * self.frameWidth(),
-        # )
-
-    def sizeHint(self):
-        s = QtCore.QSize()
-        s.setHeight(super(AssetList, self).sizeHint().height())
-        s.setWidth(self.sizeHintForColumn(0))
-        return s
+        print(
+            '@@@ _size_changed; {} x {}'.format(
+                self.sizeHintForColumn(0) + 2 * self.frameWidth(),
+                self.sizeHintForRow(0) * self.count() + 2 * self.frameWidth(),
+            )
+        )
+        self.setFixedHeight(
+            self.sizeHintForRow(0) * self.count() + 2 * self.frameWidth()
+        )
+        self.refresh()
 
 
 class AssetListSelector(QtWidgets.QFrame):
@@ -239,6 +237,7 @@ class AssetListSelector(QtWidgets.QFrame):
 
     def __init__(self, session, filters=None, parent=None):
         super(AssetListSelector, self).__init__(parent=parent)
+        self._busy_widget = None
         self.logger = logging.getLogger(
             __name__ + '.' + self.__class__.__name__
         )
@@ -262,8 +261,9 @@ class AssetListSelector(QtWidgets.QFrame):
         )
         self.layout().addWidget(self.asset_list)
         self._busy_widget = BusyIndicator(start=False)
-        self._busy_widget.setVisible(False)
+        self._busy_widget.setMinimumSize(QtCore.QSize(24, 24))
         self.layout().addWidget(self._busy_widget)
+        self._busy_widget.setVisible(False)
 
     def post_build(self):
         self.asset_list.itemSelectionChanged.connect(self._list_item_changed)

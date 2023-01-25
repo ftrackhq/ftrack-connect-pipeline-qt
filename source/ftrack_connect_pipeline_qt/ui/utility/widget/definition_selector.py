@@ -284,13 +284,36 @@ class OpenerDefinitionSelector(DefinitionSelectorBase):
                         )
                     )
                 if asset_type_name and self._host_connection.context_id:
-                    for asset_version in self._host_connection.session.query(
+                    # Collect versions
+                    asset_versions = self._host_connection.session.query(
                         'AssetVersion where '
                         'task.id={} and asset.type.name="{}" order by date descending'.format(
                             self._host_connection.context_id,
                             asset_type_name,
                         )
+                    ).all()
+                    # Follow context incoming link
+                    for tcl in self._host_connection.session.query(
+                        'TypedContextLink where to_id is "{}"'.format(
+                            self._host_connection.context_id
+                        )
                     ):
+                        for (
+                            asset_version
+                        ) in self._host_connection.session.query(
+                            'AssetVersion where '
+                            'asset.parent.id={} and asset.type.name="{}" order by date descending'.format(
+                                tcl['from_id'],
+                                asset_type_name,
+                            )
+                        ).all():
+                            if not asset_version['id'] in [
+                                _asset_version['id']
+                                for _asset_version in asset_versions
+                            ]:
+                                asset_versions.append(asset_version)
+
+                    for asset_version in asset_versions:
                         version_has_openable_component = False
                         for component in asset_version['components']:
                             for component_name in component_names_filter:
