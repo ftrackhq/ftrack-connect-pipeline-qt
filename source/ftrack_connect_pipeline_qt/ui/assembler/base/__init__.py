@@ -325,22 +325,12 @@ class AssemblerBaseWidget(QtWidgets.QWidget):
                     )
                     continue
                 elif not self.show_non_compatible_assets:
-                    if (
-                        component['name']
-                        == core_constants.SNAPSHOT_COMPONENT_NAME
-                    ):
+                    if not self.client.accept_component(component):
                         self.logger.warning(
-                            'Not assembling version {} snapshot component {}!'.format(
-                                version['id'], component['id']
-                            )
-                        )
-                        continue
-                    elif component['name'].startswith(
-                        core_constants.SNAPSHOT_FTRACKREVIEW_NAME
-                    ):
-                        self.logger.warning(
-                            'Not assembling version {} ftrackreview component {}!'.format(
-                                version['id'], component['id']
+                            'Not assembling version {} component {}({})!'.format(
+                                str_version(version),
+                                component['name'],
+                                component['id'],
                             )
                         )
                         continue

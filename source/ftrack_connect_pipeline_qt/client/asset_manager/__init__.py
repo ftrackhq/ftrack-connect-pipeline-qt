@@ -61,12 +61,12 @@ class QtAssetManagerClientWidget(QtAssetManagerClient, QtWidgets.QFrame):
     )
 
     @property
-    def asset_manager(self):
-        return self._asset_manager
+    def asset_manager_widget(self):
+        return self._asset_manager_widget
 
-    @asset_manager.setter
-    def asset_manager(self, value):
-        self._asset_manager = value
+    @asset_manager_widget.setter
+    def asset_manager_widget(self, value):
+        self._asset_manager_widget = value
 
     def __init__(
         self,
@@ -130,7 +130,9 @@ class QtAssetManagerClientWidget(QtAssetManagerClient, QtWidgets.QFrame):
         self.layout().setContentsMargins(0, 0, 0, 0)
         self.layout().setSpacing(0)
 
-        self.asset_manager = AssetManagerWidget(self, self._asset_list_model)
+        self.asset_manager_widget = AssetManagerWidget(
+            self, self._asset_list_model
+        )
 
         if self.is_assembler:
             set_property(self, 'assembler', 'true')
@@ -192,23 +194,27 @@ class QtAssetManagerClientWidget(QtAssetManagerClient, QtWidgets.QFrame):
                 self._launch_context_selector
             )
 
-        self.asset_manager.rebuild.connect(self.rebuild)
+        self.asset_manager_widget.rebuild.connect(self.rebuild)
 
-        self.asset_manager.changeAssetVersion.connect(
+        self.asset_manager_widget.changeAssetVersion.connect(
             self._on_change_asset_version
         )
 
-        self.asset_manager.selectAssets.connect(self._on_select_assets)
-        self.asset_manager.removeAssets.connect(self._on_remove_assets)
-        self.asset_manager.updateAssets.connect(self._on_update_assets)
-        self.asset_manager.loadAssets.connect(self._on_load_assets)
-        self.asset_manager.unloadAssets.connect(self._on_unload_assets)
+        self.asset_manager_widget.selectAssets.connect(self._on_select_assets)
+        self.asset_manager_widget.removeAssets.connect(self._on_remove_assets)
+        self.asset_manager_widget.updateAssets.connect(self._on_update_assets)
+        self.asset_manager_widget.loadAssets.connect(self._on_load_assets)
+        self.asset_manager_widget.unloadAssets.connect(self._on_unload_assets)
 
         if self.is_assembler:
             self._remove_button.clicked.connect(self._remove_assets_clicked)
-            self.asset_manager.asset_list.selectionUpdated.connect(
+            self.asset_manager_widget.asset_list.selectionUpdated.connect(
                 self._on_am_widget_selection_updated
             )
+            if self.asset_manager_widget.set_snapshot_asset_list:
+                self.asset_manager_widget.snapshot_asset_list.selectionUpdated.connect(
+                    self._on_am_widget_selection_updated
+                )
 
         self.selectionUpdated.connect(self._on_am_selection_updated)
         self.setMinimumWidth(300)
@@ -239,10 +245,10 @@ class QtAssetManagerClientWidget(QtAssetManagerClient, QtWidgets.QFrame):
             return
 
         self.rebuild()
-        self.asset_manager.engine_type = self.engine_type
-        self.asset_manager.set_context_actions(self.menu_action_plugins)
+        self.asset_manager_widget.engine_type = self.engine_type
+        self.asset_manager_widget.set_context_actions(self.menu_action_plugins)
 
-        self._main_scroll.setWidget(self.asset_manager)
+        self._main_scroll.setWidget(self.asset_manager_widget)
 
     # Context
 
@@ -268,7 +274,7 @@ class QtAssetManagerClientWidget(QtAssetManagerClient, QtWidgets.QFrame):
         '''
         if not self.host_connection:
             return
-        self.asset_manager.set_busy(True)
+        self.asset_manager_widget.set_busy(True)
         if self.multithreading_enabled:
             BaseThread(
                 name='discover_assets_thread',
@@ -298,14 +304,14 @@ class QtAssetManagerClientWidget(QtAssetManagerClient, QtWidgets.QFrame):
                 )
                 target_list.append(ftrack_asset)
 
-            self.asset_manager.set_asset_list(asset_entities_list)
+            self.asset_manager_widget.set_asset_list(asset_entities_list)
             if self.snapshot_assets:
-                self.asset_manager.set_snapshot_asset_list(
+                self.asset_manager_widget.set_snapshot_asset_list(
                     snapshot_asset_entities_list
                 )
             self.assetsDiscovered.emit()
         finally:
-            self.asset_manager.stopBusyIndicator.emit()
+            self.asset_manager_widget.stopBusyIndicator.emit()
 
     # Select
 
@@ -313,7 +319,7 @@ class QtAssetManagerClientWidget(QtAssetManagerClient, QtWidgets.QFrame):
         '''
         Triggered when select action is clicked on the ui.
         '''
-        self.asset_manager.set_busy(True)
+        self.asset_manager_widget.set_busy(True)
         if self.multithreading_enabled:
             BaseThread(
                 name='select_assets_thread',
@@ -326,12 +332,14 @@ class QtAssetManagerClientWidget(QtAssetManagerClient, QtWidgets.QFrame):
 
     def _assets_selected(self, *args):
         '''Called when asset(s) have been selected'''
-        self.asset_manager.stopBusyIndicator.emit()
+        self.asset_manager_widget.stopBusyIndicator.emit()
 
-    def _on_am_widget_selection_updated(self, selected_assets):
+    def _on_am_widget_selection_updated(self, unused_selected_assets):
         '''Called when asset(s) have been selected in the asset manager widget'''
+        # Collect selected assets from both lists
+        selected_assets = self.asset_manager_widget.selection()
         self.selectionUpdated.emit(selected_assets)
-        self.asset_manager.stopBusyIndicator.emit()
+        self.asset_manager_widget.stopBusyIndicator.emit()
 
     def _on_am_selection_updated(self, selected_assets):
         '''Called when asset(s) have been selected'''
@@ -351,7 +359,7 @@ class QtAssetManagerClientWidget(QtAssetManagerClient, QtWidgets.QFrame):
         '''
         Triggered when load action is clicked on the ui.
         '''
-        self.asset_manager.set_busy(True)
+        self.asset_manager_widget.set_busy(True)
         if self.multithreading_enabled:
             BaseThread(
                 name='load_assets_thread',
@@ -376,6 +384,10 @@ class QtAssetManagerClientWidget(QtAssetManagerClient, QtWidgets.QFrame):
                         self.onAssetManagerMessage.emit(value, 'Load asset')
                     continue
                 asset_info = self._asset_list_model.getDataById(key)
+                if asset_info is None and self.snapshot_assets:
+                    asset_info = self.get_snapshot_list_model().getDataById(
+                        key
+                    )
                 if asset_info is None:
                     continue
                 self.logger.debug(
@@ -385,9 +397,9 @@ class QtAssetManagerClientWidget(QtAssetManagerClient, QtWidgets.QFrame):
                 asset_info[asset_const.OBJECTS_LOADED] = True
                 do_refresh = True
             if do_refresh:
-                self.asset_manager.refresh.emit()
+                self.asset_manager_widget.refresh.emit()
         finally:
-            self.asset_manager.stopBusyIndicator.emit()
+            self.asset_manager_widget.stopBusyIndicator.emit()
 
     # Update
 
@@ -395,7 +407,7 @@ class QtAssetManagerClientWidget(QtAssetManagerClient, QtWidgets.QFrame):
         '''
         Triggered when update action is clicked on the ui.
         '''
-        self.asset_manager.set_busy(True)
+        self.asset_manager_widget.set_busy(True)
         if self.multithreading_enabled:
             BaseThread(
                 name='update_assets_thread',
@@ -419,6 +431,8 @@ class QtAssetManagerClientWidget(QtAssetManagerClient, QtWidgets.QFrame):
                         self.onAssetManagerMessage.emit(value, 'Update asset')
                     continue
                 index = self._asset_list_model.getIndex(key)
+                if index is None and self.snapshot_assets:
+                    index = self.get_snapshot_list_model().getIndex(key)
                 if index is None:
                     continue
                 self.logger.debug(
@@ -428,9 +442,9 @@ class QtAssetManagerClientWidget(QtAssetManagerClient, QtWidgets.QFrame):
                 self._asset_list_model.setData(index, asset_info, silent=True)
                 do_refresh = True
             if do_refresh:
-                self.asset_manager.refresh.emit()
+                self.asset_manager_widget.refresh.emit()
         finally:
-            self.asset_manager.stopBusyIndicator.emit()
+            self.asset_manager_widget.stopBusyIndicator.emit()
 
     # Change version
 
@@ -438,7 +452,7 @@ class QtAssetManagerClientWidget(QtAssetManagerClient, QtWidgets.QFrame):
         '''
         Triggered when a version of the asset has changed on the ui.
         '''
-        self.asset_manager.set_busy(True)
+        self.asset_manager_widget.set_busy(True)
         if self.multithreading_enabled:
             BaseThread(
                 name='change_asset_version_thread',
@@ -465,6 +479,8 @@ class QtAssetManagerClientWidget(QtAssetManagerClient, QtWidgets.QFrame):
                         )
                     continue
                 index = self._asset_list_model.getIndex(key)
+                if index is None and self.snapshot_assets:
+                    index = self.get_snapshot_list_model().getIndex(key)
                 if index is None:
                     continue
                 self.logger.debug(
@@ -474,9 +490,9 @@ class QtAssetManagerClientWidget(QtAssetManagerClient, QtWidgets.QFrame):
                 self._asset_list_model.setData(index, asset_info, silent=True)
                 do_refresh = True
             if do_refresh:
-                self.asset_manager.refresh.emit()
+                self.asset_manager_widget.refresh.emit()
         finally:
-            self.asset_manager.stopBusyIndicator.emit()
+            self.asset_manager_widget.stopBusyIndicator.emit()
 
     # Unload
 
@@ -484,7 +500,7 @@ class QtAssetManagerClientWidget(QtAssetManagerClient, QtWidgets.QFrame):
         '''
         Triggered when unload action is clicked on the ui.
         '''
-        self.asset_manager.set_busy(True)
+        self.asset_manager_widget.set_busy(True)
         if self.multithreading_enabled:
             BaseThread(
                 name='unload_assets_thread',
@@ -508,6 +524,10 @@ class QtAssetManagerClientWidget(QtAssetManagerClient, QtWidgets.QFrame):
                         self.onAssetManagerMessage.emit(value, 'Unload asset')
                     continue
                 asset_info = self._asset_list_model.getDataById(key)
+                if asset_info is None and self.snapshot_assets:
+                    asset_info = self.get_snapshot_list_model().getDataById(
+                        key
+                    )
                 if asset_info is None:
                     self.logger.warning(
                         'Could not find recently unloaded asset: {} (event: {})'.format(
@@ -522,9 +542,9 @@ class QtAssetManagerClientWidget(QtAssetManagerClient, QtWidgets.QFrame):
                 asset_info[asset_const.OBJECTS_LOADED] = False
                 do_refresh = True
             if do_refresh:
-                self.asset_manager.refresh.emit()
+                self.asset_manager_widget.refresh.emit()
         finally:
-            self.asset_manager.stopBusyIndicator.emit()
+            self.asset_manager_widget.stopBusyIndicator.emit()
 
     # Remove
 
@@ -532,8 +552,8 @@ class QtAssetManagerClientWidget(QtAssetManagerClient, QtWidgets.QFrame):
         '''
         Triggered when remove action is clicked on the ui.
         '''
-        selection = self.asset_manager.asset_list.selection()
-        if self.asset_manager.check_selection(selection):
+        selection = self.asset_manager_widget.selection()
+        if self.asset_manager_widget.check_selection(selection):
             if dialog.ModalDialog(
                 self.parent(),
                 title='ftrack Asset manager',
@@ -547,7 +567,7 @@ class QtAssetManagerClientWidget(QtAssetManagerClient, QtWidgets.QFrame):
         '''
         Triggered when remove action is clicked on the ui.
         '''
-        self.asset_manager.set_busy(True)
+        self.asset_manager_widget.set_busy(True)
         if self.multithreading_enabled:
             BaseThread(
                 name='remove_assets_thread',
@@ -573,6 +593,8 @@ class QtAssetManagerClientWidget(QtAssetManagerClient, QtWidgets.QFrame):
                         self.onAssetManagerMessage.emit(value, 'Remove asset')
                     continue
                 index = self._asset_list_model.getIndex(key)
+                if index is None and self.snapshot_assets:
+                    index = self.get_snapshot_list_model().getIndex(key)
                 if index is None:
                     continue
                 self.logger.debug(
@@ -580,12 +602,12 @@ class QtAssetManagerClientWidget(QtAssetManagerClient, QtWidgets.QFrame):
                 )
                 self._asset_list_model.removeRows(index)
         finally:
-            self.asset_manager.stopBusyIndicator.emit()
+            self.asset_manager_widget.stopBusyIndicator.emit()
 
     def mousePressEvent(self, event):
         '''(Override) Intercept mouse press event'''
         if event.button() != QtCore.Qt.RightButton:
-            self.asset_manager.asset_list.clear_selection()
+            self.asset_manager_widget.clear_selection()
         return super(QtAssetManagerClientWidget, self).mousePressEvent(event)
 
     def _launch_publisher(self):
@@ -604,11 +626,11 @@ class QtAssetManagerClientWidget(QtAssetManagerClient, QtWidgets.QFrame):
         # Unsubscribe to context change events
         self.unsubscribe_host_context_change()
         # Have asset manager widget unsubscribe to events
-        if self.asset_manager.client_notification_subscribe_id:
+        if self.asset_manager_widget.client_notification_subscribe_id:
             self.session.unsubscribe(
-                self.asset_manager.client_notification_subscribe_id
+                self.asset_manager_widget.client_notification_subscribe_id
             )
-            self.asset_manager.client_notification_subscribe_id = None
+            self.asset_manager_widget.client_notification_subscribe_id = None
 
 
 class AssetManagerTabWidget(tab.TabWidget):
