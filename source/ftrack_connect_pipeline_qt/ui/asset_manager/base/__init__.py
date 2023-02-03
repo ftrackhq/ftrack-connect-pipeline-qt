@@ -96,6 +96,7 @@ class AssetManagerBaseWidget(QtWidgets.QWidget):
         super(AssetManagerBaseWidget, self).__init__(parent=parent)
 
         self._client = asset_manager_client
+        self._asset_list = None
         self._asset_list_model = asset_list_model
         self._engine_type = None
 

@@ -38,6 +38,11 @@ from ftrack_connect_pipeline_qt.ui.utility.widget.button import ApproveButton
 class AssetManagerWidget(AssetManagerBaseWidget):
     '''Asset manager widget that lives within the asset manager client'''
 
+    @property
+    def snapshot_asset_list(self):
+        '''Return snapshot asset list widget.'''
+        return self._snapshot_asset_list
+
     def __init__(self, asset_manager_client, asset_list_model, parent=None):
         '''
         Initialize the asset manager widget
@@ -47,7 +52,7 @@ class AssetManagerWidget(AssetManagerBaseWidget):
         :param parent:  The parent dialog or window
         '''
         self.client_notification_subscribe_id = None
-        self._asset_list = self._snapshot_asset_list = None
+        self._snapshot_asset_list = None
         super(AssetManagerWidget, self).__init__(
             asset_manager_client,
             asset_list_model,
@@ -153,9 +158,7 @@ class AssetManagerWidget(AssetManagerBaseWidget):
             docked=self._client.is_docked(),
         )
 
-        self.scroll.setWidget(
-            self.build_asset_list_container(self._asset_list)
-        )
+        self.scroll.setWidget(self.build_asset_list_container(self.asset_list))
 
         if self.client.snapshot_assets:
             # Add snapshot asset list
@@ -167,7 +170,7 @@ class AssetManagerWidget(AssetManagerBaseWidget):
             )
 
             self.snapshot_scroll.setWidget(
-                self.build_asset_list_container(self._snapshot_asset_list)
+                self.build_asset_list_container(self.snapshot_asset_list)
             )
 
     def post_build(self):
@@ -176,29 +179,29 @@ class AssetManagerWidget(AssetManagerBaseWidget):
         self._rebuild_button.clicked.connect(self._on_rebuild)
         self.refresh.connect(self._on_refresh)
         self.stopBusyIndicator.connect(self._on_stop_busy_indicator)
-        self._asset_list.refreshed.connect(self._on_asset_list_refreshed)
-        self._asset_list.changeAssetVersion.connect(
+        self.asset_list.refreshed.connect(self._on_asset_list_refreshed)
+        self.asset_list.changeAssetVersion.connect(
             self._on_change_asset_version
         )
-        if self.snapshot_assets:
-            self._snapshot_asset_list.refreshed.connect(
+        if self.snapshot_asset_list:
+            self.snapshot_asset_list.refreshed.connect(
                 self._on_asset_list_refreshed
             )
-            self._snapshot_asset_list.changeAssetVersion.connect(
+            self.snapshot_asset_list.changeAssetVersion.connect(
                 self._on_change_asset_version
             )
 
     def set_asset_list(self, asset_entities_list):
         '''Clear model and add asset entities, will trigger list to be rebuilt.'''
-        self._asset_list.model.reset()
+        self.asset_list.model.reset()
         if asset_entities_list and 0 < len(asset_entities_list):
-            self._asset_list.model.insertRows(0, asset_entities_list)
+            self.asset_list.model.insertRows(0, asset_entities_list)
 
     def set_snapshot_asset_list(self, asset_entities_list):
         '''Clear model and add asset entities, will trigger list to be rebuilt.'''
-        self._snapshot_asset_list.model.reset()
+        self.snapshot_asset_list.model.reset()
         if asset_entities_list and 0 < len(asset_entities_list):
-            self._snapshot_asset_list.model.insertRows(0, asset_entities_list)
+            self.snapshot_asset_list.model.insertRows(0, asset_entities_list)
 
     def set_busy(self, busy):
         '''Enter busy mode if *busy* is True - start spinner and show it. If *busy* is false, stop and hide the spinner'''
@@ -217,10 +220,10 @@ class AssetManagerWidget(AssetManagerBaseWidget):
 
     def on_search(self, text):
         '''Search text has been altered by user, search in the current model and hide assets accordingly'''
-        if self._asset_list:
-            self._asset_list.on_search(text)
-        if self._snapshot_asset_list:
-            self._snapshot_asset_list.on_search(text)
+        if self.asset_list:
+            self.asset_list.on_search(text)
+        if self.snapshot_asset_list:
+            self.snapshot_asset_list.on_search(text)
 
     def create_actions(self, actions):
         '''Creates all the actions for the context menu.'''
@@ -416,22 +419,27 @@ class AssetManagerWidget(AssetManagerBaseWidget):
 
     def selection(self):
         '''Return the selected assets'''
-        selection = self._asset_list.selection()
-        if self.snapshot_assets:
-            selection.extend(self._snapshot_asset_list.selection())
+        selection = self.asset_list.selection()
+        if self.snapshot_asset_list:
+            selection.extend(self.snapshot_asset_list.selection())
         return selection
+
+    def clear_selection(self):
+        self.asset_list.clear_selection()
+        if self.snapshot_asset_list:
+            self.snapshot_asset_list.clear_selection()
 
     def _on_refresh(self):
         '''Refresh the asset list from the model data.'''
-        self._asset_list.rebuild()
-        if self.snapshot_assets:
-            self._snapshot_asset_list.rebuild()
+        self.asset_list.rebuild()
+        if self.snapshot_asset_list:
+            self.snapshot_asset_list.rebuild()
 
     def _on_asset_list_refreshed(self):
         '''List has refreshed from model'''
-        count = self._asset_list.count
-        if self.snapshot_assets:
-            count += self._snapshot_asset_list.count
+        count = self.asset_list.count
+        if self.snapshot_asset_list:
+            count += self.snapshot_asset_list.count
         if self.is_assembler:
             self._label_info.setText(
                 'Listing {} asset{}'.format(

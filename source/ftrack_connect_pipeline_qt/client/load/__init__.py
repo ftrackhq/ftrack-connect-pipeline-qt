@@ -498,7 +498,7 @@ class QtAssemblerClientWidget(QtLoaderClient, dialog.Dialog):
                             failed,
                         ),
                     )
-                self.asset_manager.asset_manager.rebuild.emit()
+                self.asset_manager.asset_manager_widget.rebuild.emit()
             else:
                 self.progress_widget.set_status(
                     core_constants.ERROR_STATUS,
@@ -515,6 +515,17 @@ class QtAssemblerClientWidget(QtLoaderClient, dialog.Dialog):
             if self._assembler_widget:
                 self._assembler_widget.rebuild()
             self.hard_refresh = False
+
+    def accept_component(self, component):
+        '''Return True if the component should be accepted for resolve, to
+        be overidden by subclasses'''
+        return not (
+            component['name'] == core_constants.SNAPSHOT_COMPONENT_NAME
+        ) or (
+            component['name'].startswith(
+                core_constants.FTRACKREVIEW_COMPONENT_NAME
+            )
+        )
 
     def _launch_assembler(self):
         '''Open the assembler and close client if dialog'''
