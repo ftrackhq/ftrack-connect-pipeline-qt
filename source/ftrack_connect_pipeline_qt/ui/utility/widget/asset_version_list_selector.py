@@ -133,9 +133,14 @@ class AssetList(QtWidgets.QListWidget):
         self.session = session
         self._filters = filters
         self.setHorizontalScrollBarPolicy(QtCore.Qt.ScrollBarAlwaysOff)
+        self.horizontalScrollBar().setEnabled(False)
+        self.verticalScrollBar().setEnabled(False)
         self.setVerticalScrollBarPolicy(QtCore.Qt.ScrollBarAlwaysOff)
         self.setSpacing(1)
         self.assets = []
+
+    def wheelEvent(self, event):
+        event.ignore()
 
     def _query_assets_from_context_async(self, context_id, asset_type_name):
         '''(Run in background thread) Fetch assets from current context'''
@@ -149,7 +154,7 @@ class AssetList(QtWidgets.QListWidget):
         assets = self.session.query(
             'select name, versions.task.id, type.id, id, latest_version,'
             'latest_version.version, latest_version.date '
-            'from Asset where versions.task.id is {} and type.id is {}'.format(
+            'from Asset where (versions.task.id is {0} or versions.asset.parent.id is {0}) and type.id is {1}'.format(
                 context_id, asset_type_entity['id']
             )
         ).all()
@@ -175,12 +180,10 @@ class AssetList(QtWidgets.QListWidget):
         # Add data placeholder for new asset input
         self.assetsQueryDone.emit()
 
-    def refresh(self):
+    def rebuild(self):
         '''Add fetched assets to list'''
         self.clear()
         for asset_entity in self.assets:
-            print('@@@ asset_entity', asset_entity)
-
             widget = AssetVersionListItem(
                 self._context_id,
                 asset_entity,
@@ -212,20 +215,8 @@ class AssetList(QtWidgets.QListWidget):
     def _on_version_changed(self, asset_item):
         self.versionChanged.emit(asset_item)
 
-    def resizeEvent(self, event):
-        self._size_changed()
-
     def _size_changed(self):
-        print(
-            '@@@ _size_changed; {} x {}'.format(
-                self.sizeHintForColumn(0) + 2 * self.frameWidth(),
-                self.sizeHintForRow(0) * self.count() + 2 * self.frameWidth(),
-            )
-        )
-        self.setFixedHeight(
-            self.sizeHintForRow(0) * self.count() + 2 * self.frameWidth()
-        )
-        self.refresh()
+        self.setFixedHeight(self.sizeHintForRow(0) * self.count() + 20) # Add some extra space to prevent unwanted scrolling
 
 
 class AssetListSelector(QtWidgets.QFrame):
@@ -268,12 +259,12 @@ class AssetListSelector(QtWidgets.QFrame):
     def post_build(self):
         self.asset_list.itemSelectionChanged.connect(self._list_item_changed)
         self.asset_list.versionChanged.connect(self._on_current_asset_changed)
-        self.asset_list.assetsQueryDone.connect(self._refresh)
+        self.asset_list.assetsQueryDone.connect(self._rebuild)
         self.asset_list.assetsAdded.connect(self._pre_select_asset)
 
-    def _refresh(self):
+    def _rebuild(self):
         '''Add assets queried in separate thread to list'''
-        self.asset_list.refresh()
+        self.asset_list.rebuild()
         self._busy_widget.stop()
         self._busy_widget.setVisible(False)
         self.asset_list.setVisible(True)
