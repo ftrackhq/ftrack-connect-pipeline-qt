@@ -453,10 +453,10 @@ class AssemblerBaseWidget(QtWidgets.QWidget):
 class AssemblerListBaseWidget(AssetListWidget):
     '''Base for asset lists within the assembler'''
 
-    def __init__(self, assembler_widget, parent=None):
+    def __init__(self, assembler_widget, component_widget_class, parent=None):
         self._assembler_widget = assembler_widget
         super(AssemblerListBaseWidget, self).__init__(
-            self._assembler_widget.model, parent=parent
+            self._assembler_widget.model, component_widget_class, parent=parent
         )
 
     def rebuild(self):

@@ -338,10 +338,12 @@ class BatchPublisherListBaseWidget(AssetListWidget):
         '''Return the recursive level of this widget'''
         return self._batch_publisher_widget.level
 
-    def __init__(self, batch_publisher_widget, parent=None):
+    def __init__(self, batch_publisher_widget, item_widget_class, parent=None):
         self._batch_publisher_widget = batch_publisher_widget
         super(BatchPublisherListBaseWidget, self).__init__(
-            self._batch_publisher_widget.model, parent=parent
+            self._batch_publisher_widget.model,
+            item_widget_class,
+            parent=parent,
         )
 
     def post_build(self):

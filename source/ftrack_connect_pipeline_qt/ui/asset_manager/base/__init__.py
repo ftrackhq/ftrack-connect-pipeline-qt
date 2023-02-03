@@ -52,7 +52,7 @@ class AssetManagerBaseWidget(QtWidgets.QWidget):
     @property
     def is_assembler(self):
         '''Return asset list widget'''
-        return self._client.is_assembler
+        return self.client.is_assembler
 
     @property
     def asset_list(self):
@@ -60,9 +60,17 @@ class AssetManagerBaseWidget(QtWidgets.QWidget):
         return self._asset_list
 
     @property
+    def asset_list_container(self):
+        return self._asset_list_container
+
+    @property
+    def snapshot_asset_list_container(self):
+        return self._snapshot_asset_list_container
+
+    @property
     def host_connection(self):
         '''Return the host connection'''
-        return self._client.host_connection
+        return self.client.host_connection
 
     @property
     def event_manager(self):
@@ -99,6 +107,8 @@ class AssetManagerBaseWidget(QtWidgets.QWidget):
         self._asset_list = None
         self._asset_list_model = asset_list_model
         self._engine_type = None
+        self._asset_list_container = None
+        self._snapshot_asset_list_container = None
 
         self.pre_build()
         self.build()
@@ -109,6 +119,14 @@ class AssetManagerBaseWidget(QtWidgets.QWidget):
         self.setLayout(QtWidgets.QVBoxLayout(self))
         self.layout().setContentsMargins(0, 0, 0, 0)
         self.layout().setSpacing(0)
+
+        self.scroll_area = scroll_area.ScrollArea()
+        if self.client.snapshot_assets:
+            self.snapshot_scroll_area = scroll_area.ScrollArea()
+
+    def build_asset_list_container(self, scroll_widget, snapshot=False):
+        '''Return the widget enclosing the asset list, can be overidden by child'''
+        return AssetListContainerWidget(scroll_widget)
 
     def build_header(self, layout):
         '''Build the asset manager header and add to *layout*. To be overridden by child'''
@@ -123,25 +141,25 @@ class AssetManagerBaseWidget(QtWidgets.QWidget):
         self.build_header(self._header.layout())
         self.layout().addWidget(self._header)
 
-        self.scroll = scroll_area.ScrollArea()
-        self.scroll.setWidgetResizable(True)
-        self.scroll.setHorizontalScrollBarPolicy(QtCore.Qt.ScrollBarAlwaysOff)
+        self.scroll_area.setWidgetResizable(True)
+        self.scroll_area.setHorizontalScrollBarPolicy(
+            QtCore.Qt.ScrollBarAlwaysOff
+        )
 
         if not self.client.snapshot_assets:
             # A single list of ftrack assets
-            self.layout().addWidget(self.scroll, 100)
+            self.layout().addWidget(self.asset_list_container, 100)
         else:
             # Create a scroll area for snapshot component list
-            self.snapshot_scroll = scroll_area.ScrollArea()
-            self.snapshot_scroll.setWidgetResizable(True)
-            self.snapshot_scroll.setHorizontalScrollBarPolicy(
+            self.snapshot_scroll_area.setWidgetResizable(True)
+            self.snapshot_scroll_area.setHorizontalScrollBarPolicy(
                 QtCore.Qt.ScrollBarAlwaysOff
             )
 
             # Put into a split view
             self._splitter = QtWidgets.QSplitter(QtCore.Qt.Horizontal)
-            self._splitter.addWidget(self.scroll)
-            self._splitter.addWidget(self.snapshot_scroll)
+            self._splitter.addWidget(self.asset_list_container)
+            self._splitter.addWidget(self.snapshot_asset_list_container)
             self._splitter.setStretchFactor(0, 1)
             self._splitter.setStretchFactor(1, 1)
             self._splitter.setHandleWidth(1)
@@ -165,6 +183,33 @@ class AssetManagerBaseWidget(QtWidgets.QWidget):
         pass
 
 
+class AssetListContainerWidget(QtWidgets.QWidget):
+    '''Container widget for asset list widget, allows for DCC overrides with
+    additional toolings'''
+
+    def __init__(self, scroll_widget, parent=None):
+        super(AssetListContainerWidget, self).__init__(parent=parent)
+        self._scroll_widget = scroll_widget
+        self._header_widget = None
+
+        self.pre_build()
+        self.build()
+        self.post_build()
+
+    def pre_build(self):
+        self.setLayout(QtWidgets.QVBoxLayout())
+        self.layout().setContentsMargins(0, 0, 0, 0)
+        self.layout().setSpacing(0)
+
+    def build(self):
+        if self._header_widget:
+            self.layout().addWidget(self._header_widget)
+        self.layout().addWidget(self._scroll_widget, 1000)
+
+    def post_build(self):
+        pass
+
+
 class AssetListWidget(QtWidgets.QWidget):
     '''Generic asset list view widget'''
 
@@ -185,6 +230,10 @@ class AssetListWidget(QtWidgets.QWidget):
         return self._model
 
     @property
+    def item_widget_class(self):
+        return self._item_widget_class
+
+    @property
     def assets(self):
         '''Return assets added to widget'''
         for i in range(self.layout().count()):
@@ -196,7 +245,7 @@ class AssetListWidget(QtWidgets.QWidget):
     def count(self):
         return self.model.rowCount()
 
-    def __init__(self, model, parent=None):
+    def __init__(self, model, item_widget_class, parent=None):
         '''
         Initialize asset list widget
 
@@ -205,6 +254,7 @@ class AssetListWidget(QtWidgets.QWidget):
         '''
         super(AssetListWidget, self).__init__(parent=parent)
         self._model = model
+        self._item_widget_class = item_widget_class
         self.was_clicked = False
 
         self.pre_build()
@@ -330,8 +380,10 @@ class AssetListWidget(QtWidgets.QWidget):
         self.setup_widget(widget)
 
     def setup_widget(self, widget):
-        widget.clicked.connect(partial(self.asset_clicked, widget))
-        widget.checkedStateChanged.connect(self.asset_checked)
+        '''Initialize accordion asset widget, ignore other types of widget in list'''
+        if isinstance(widget, AccordionBaseWidget):
+            widget.clicked.connect(partial(self.asset_clicked, widget))
+            widget.checkedStateChanged.connect(self.asset_checked)
 
     def get_widget(self, index):
         '''Return the asset widget representation at *index*'''

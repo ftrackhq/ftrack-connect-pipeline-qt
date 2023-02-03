@@ -561,9 +561,8 @@ class DependenciesListWidget(AssemblerListBaseWidget):
         :param assembler_widget: :class:`~ftrack_connect_pipeline_qt.ui.assembler.base.AssemblerBaseWidget` instance
         :param parent: The parent dialog or frame
         '''
-        self._asset_widget_class = DependencyComponentWidget
         super(DependenciesListWidget, self).__init__(
-            assembler_widget, parent=parent
+            assembler_widget, DependencyComponentWidget, parent=parent
         )
 
     def post_build(self):
@@ -631,7 +630,7 @@ class DependenciesListWidget(AssemblerListBaseWidget):
 
             # Append component accordion
 
-            component_widget = self._asset_widget_class(
+            component_widget = self.item_widget_class(
                 index, self._assembler_widget, self.model.event_manager
             )
             set_property(
@@ -662,10 +661,9 @@ class BrowserListWidget(AssemblerListBaseWidget):
         :param assembler_widget: :class:`~ftrack_connect_pipeline_qt.ui.assembler.base.AssemblerBaseWidget` instance
         :param parent: The parent dialog or frame
         '''
-        self._asset_widget_class = BrowsedComponentWidget
         self.prev_search_text = None
         super(BrowserListWidget, self).__init__(
-            assembler_widget, parent=parent
+            assembler_widget, BrowsedComponentWidget, parent=parent
         )
 
     def build(self):
@@ -708,7 +706,7 @@ class BrowserListWidget(AssemblerListBaseWidget):
     def _build_widget(self, index):
         '''Build component accordion widget'''
         (component, definitions, availability) = self.model.data(index)
-        component_widget = self._asset_widget_class(
+        component_widget = self.item_widget_class(
             index, self._assembler_widget, self.model.event_manager
         )
         set_property(

@@ -21,6 +21,10 @@ from ftrack_connect_pipeline_qt.ui.utility.widget import (
 )
 from ftrack_connect_pipeline_qt.ui.asset_manager.asset_manager import (
     AssetManagerWidget,
+    AssetWidget,
+)
+from ftrack_connect_pipeline_qt.ui.asset_manager.model import (
+    AssetListModel,
 )
 from ftrack_connect_pipeline_qt.ui.utility.widget.context_selector import (
     ContextSelector,
@@ -124,26 +128,28 @@ class QtAssetManagerClientWidget(QtAssetManagerClient, QtWidgets.QFrame):
 
     # Build
 
+    def build_asset_manager_widget(self):
+        '''Build the asset manager widget, can be overidden by DCC'''
+        return AssetManagerWidget(self, self._asset_list_model)
+
     def pre_build(self):
         '''Prepare general layout.'''
         self.setLayout(QtWidgets.QVBoxLayout())
         self.layout().setContentsMargins(0, 0, 0, 0)
         self.layout().setSpacing(0)
 
-        self.asset_manager_widget = AssetManagerWidget(
-            self, self._asset_list_model
-        )
+        self.asset_manager_widget = self.build_asset_manager_widget()
 
         if self.is_assembler:
             set_property(self, 'assembler', 'true')
 
     def get_snapshot_asset_widget_class(self):
-        '''(Optional, required if snapshot_assets property is set) Return snapshot asset widget class, can be overidden by child DCC'''
-        return None
+        '''(Optional, required if snapshot_assets property is set) Return snapshot asset widget class, to be overidden by child DCC'''
+        return AssetWidget  # Provide default
 
     def get_snapshot_list_model(self):
-        '''(Optional, required if snapshot_assets property is set) Return snapshot list model'''
-        return None
+        '''(Optional, required if snapshot_assets property is set) Return snapshot list model, to be overidden by child DCC'''
+        return AssetListModel(self.event_manager)  # Provide default
 
     def build(self):
         '''Build widgets and parent them.'''

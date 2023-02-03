@@ -14,20 +14,16 @@ from ftrack_connect_pipeline_qt.ui.asset_manager.base import (
     AssetManagerBaseWidget,
     AssetListWidget,
 )
-from ftrack_connect_pipeline_qt.ui.utility.widget.circular_button import (
-    CircularButton,
-)
+from ftrack_connect_pipeline_qt.ui.utility.widget import circular_button, line
 from ftrack_connect_pipeline_qt.ui.utility.widget.base.accordion_base import (
     AccordionBaseWidget,
 )
 from ftrack_connect_pipeline.utils import str_version
-from ftrack_connect_pipeline_qt.utils import set_property
 from ftrack_connect_pipeline_qt.ui.utility.widget.thumbnail import (
     AssetVersion as AssetVersionThumbnail,
 )
 from ftrack_connect_pipeline_qt.ui.utility.widget.entity_info import EntityInfo
-from ftrack_connect_pipeline_qt.ui.utility.widget import line
-from ftrack_connect_pipeline_qt.utils import clear_layout
+from ftrack_connect_pipeline_qt.utils import clear_layout, set_property
 from ftrack_connect_pipeline_qt.ui.utility.widget.dialog import ModalDialog
 from ftrack_connect_pipeline_qt.ui.utility.widget.busy_indicator import (
     BusyIndicator,
@@ -59,6 +55,42 @@ class AssetManagerWidget(AssetManagerBaseWidget):
             parent=parent,
         )
 
+    def build_asset_manager_list_widget(self, snapshot=False):
+        '''Build the asset manager list widget based on *snapshot*'''
+        if not snapshot:
+            return AssetManagerListWidget(
+                self._asset_list_model,
+                AssetWidget,
+                docked=self.client.is_docked(),
+            )
+        else:
+            return AssetManagerListWidget(
+                self.client.get_snapshot_list_model(),
+                self.client.get_snapshot_asset_widget_class(),
+                docked=self.client.is_docked(),
+            )
+
+    def pre_build(self):
+        super(AssetManagerWidget, self).pre_build()
+
+        self._asset_list_container = self.build_asset_list_container(
+            self.scroll_area
+        )
+
+        self._asset_list = self.build_asset_manager_list_widget()
+
+        if self.client.snapshot_assets:
+            # Create snapshot asset container and list
+            self._snapshot_asset_list_container = (
+                self.build_asset_list_container(
+                    self.snapshot_scroll_area, snapshot=True
+                )
+            )
+
+            self._snapshot_asset_list = self.build_asset_manager_list_widget(
+                snapshot=True
+            )
+
     def _build_docked_header(self, layout):
         '''Build DCC docked header and add to *layout*'''
         row1 = QtWidgets.QWidget()
@@ -85,7 +117,7 @@ class AssetManagerWidget(AssetManagerBaseWidget):
 
         row2.layout().addWidget(self.init_search())
 
-        self._rebuild_button = CircularButton('sync')
+        self._rebuild_button = circular_button.CircularButton('sync')
         row2.layout().addWidget(self._rebuild_button)
 
         self._busy_widget = BusyIndicator(start=False)
@@ -122,7 +154,7 @@ class AssetManagerWidget(AssetManagerBaseWidget):
 
         row2.layout().addWidget(self.init_search())
 
-        self._rebuild_button = CircularButton('sync')
+        self._rebuild_button = circular_button.CircularButton('sync')
         row2.layout().addWidget(self._rebuild_button)
 
         self._busy_widget = BusyIndicator(start=False)
@@ -138,39 +170,28 @@ class AssetManagerWidget(AssetManagerBaseWidget):
             layout
         ) if not self.is_assembler else self._build_assembler_header(layout)
 
-    def build_asset_list_container(self, asset_list):
+    def build_asset_list_wrapper(self, asset_list):
         '''Create a container widget for *asset_list*'''
-        asset_list_container = QtWidgets.QWidget()
-        asset_list_container.setLayout(QtWidgets.QVBoxLayout())
-        asset_list_container.layout().setContentsMargins(0, 0, 0, 0)
-        asset_list_container.layout().setSpacing(0)
-        asset_list_container.layout().addWidget(asset_list)
-        asset_list_container.layout().addWidget(QtWidgets.QLabel(''), 1000)
-        return asset_list_container
+        asset_list_wrapper = QtWidgets.QWidget()
+        asset_list_wrapper.setLayout(QtWidgets.QVBoxLayout())
+        asset_list_wrapper.layout().setContentsMargins(0, 0, 0, 0)
+        asset_list_wrapper.layout().setSpacing(0)
+        asset_list_wrapper.layout().addWidget(asset_list)
+        asset_list_wrapper.layout().addWidget(QtWidgets.QLabel(''), 1000)
+        return asset_list_wrapper
 
     def build(self):
         '''(Override)'''
         super(AssetManagerWidget, self).build()
 
-        self._asset_list = AssetManagerListWidget(
-            self._asset_list_model,
-            AssetWidget,
-            docked=self._client.is_docked(),
+        self.scroll_area.setWidget(
+            self.build_asset_list_wrapper(self.asset_list)
         )
-
-        self.scroll.setWidget(self.build_asset_list_container(self.asset_list))
 
         if self.client.snapshot_assets:
             # Add snapshot asset list
-
-            self._snapshot_asset_list = AssetManagerListWidget(
-                self.client.get_snapshot_list_model(),
-                self.client.get_snapshot_asset_widget_class(),
-                docked=self._client.is_docked(),
-            )
-
-            self.snapshot_scroll.setWidget(
-                self.build_asset_list_container(self.snapshot_asset_list)
+            self.snapshot_scroll_area.setWidget(
+                self.build_asset_list_wrapper(self.snapshot_asset_list)
             )
 
     def post_build(self):
@@ -287,7 +308,7 @@ class AssetManagerWidget(AssetManagerBaseWidget):
         '''Check if *selected_assets* is empty and show dialog message'''
         if len(selected_assets) == 0:
             ModalDialog(
-                self._client,
+                self.client,
                 title='Error!',
                 message="Please select at least one asset!",
             )
@@ -319,7 +340,7 @@ class AssetManagerWidget(AssetManagerBaseWidget):
                     selection.remove(a_info)
             if len(selection) == 0:
                 ModalDialog(
-                    self._client,
+                    self.client,
                     title='ftrack Asset manager',
                     message='Selected Assets are already loaded.',
                 )
@@ -335,7 +356,7 @@ class AssetManagerWidget(AssetManagerBaseWidget):
         selection = self.selection()
         if self.check_selection(selection):
             if ModalDialog(
-                self._client.parent(),
+                self.client.parent(),
                 title='ftrack Asset manager',
                 question='Really update {} asset{} to latest version?'.format(
                     len(selection), 's' if len(selection) > 1 else ''
@@ -358,13 +379,13 @@ class AssetManagerWidget(AssetManagerBaseWidget):
                     selection.remove(a_info)
             if len(selection) == 0:
                 ModalDialog(
-                    self._client,
+                    self.client,
                     title='ftrack Asset manager',
                     message='Selected Assets are already unloaded.',
                 )
             else:
                 if ModalDialog(
-                    self._client.parent(),
+                    self.client.parent(),
                     title='ftrack Asset manager',
                     question='Really unload {} asset{}?'.format(
                         len(selection), 's' if len(selection) > 1 else ''
@@ -380,7 +401,7 @@ class AssetManagerWidget(AssetManagerBaseWidget):
         selection = self.selection()
         if self.check_selection(selection):
             if ModalDialog(
-                self._client.parent(),
+                self.client.parent(),
                 title='ftrack Asset manager',
                 question='Really remove {} asset{}?'.format(
                     len(selection), 's' if len(selection) > 1 else ''
@@ -447,7 +468,7 @@ class AssetManagerWidget(AssetManagerBaseWidget):
                     's' if count > 1 else '',
                 )
             )
-        self._client.selectionUpdated.emit(self.selection())
+        self.client.selectionUpdated.emit(self.selection())
 
     def _on_rebuild(self):
         '''Query DCC for scene assets.'''
@@ -472,7 +493,7 @@ class AssetManagerWidget(AssetManagerBaseWidget):
             )
         ).first()
         if ModalDialog(
-            self._client.parent(),
+            self.client.parent(),
             title='ftrack Asset manager',
             question='Change version of {} to v{}?'.format(
                 str_version(current_version), version_entity['version']
@@ -499,11 +520,12 @@ class AssetManagerListWidget(AssetListWidget):
         :param docked: Boolean telling if the list is docked in DCC or is within an ftrack dialog - drive style
         :param parent: The parent dialog or frame
         '''
-        self._asset_widget_class = asset_widget_class
         self._docked = docked
         self.prev_search_text = ''
 
-        super(AssetManagerListWidget, self).__init__(model, parent=parent)
+        super(AssetManagerListWidget, self).__init__(
+            model, asset_widget_class, parent=parent
+        )
 
     def post_build(self):
         '''(Override)'''
@@ -519,28 +541,32 @@ class AssetManagerListWidget(AssetListWidget):
         '''React upon change in asset model'''
         self.rebuild()
 
-    def rebuild(
-        self,
-    ):
+    def rebuild(self, add=True):
         '''Clear widget and add all assets again from model.'''
         clear_layout(self.layout())
+        result = []
         # TODO: Save selection state
         for row in range(self.model.rowCount()):
             index = self.model.createIndex(row, 0, self.model)
             asset_info = self.model.data(index)
-            asset_widget = self._asset_widget_class(
+            asset_widget = self.item_widget_class(
                 index, self.model.event_manager, docked=self._docked
             )
             set_property(
                 asset_widget, 'first', 'true' if row == 0 else 'false'
             )
             asset_widget.set_asset_info(asset_info)
-            self.add_widget(asset_widget)
+            if add:
+                self.add_widget(asset_widget)
+            else:
+                result.append(asset_widget)
             asset_widget.changeAssetVersion.connect(
                 self._on_change_asset_version
             )
-        self.refresh()
-        self.refreshed.emit()
+        if add:
+            self.refresh()
+            self.refreshed.emit()
+        return result
 
     def _on_change_asset_version(self, index, version_entity):
         '''User has commanded a change of version within the asset, propagate'''
@@ -655,31 +681,25 @@ class AssetWidget(AccordionBaseWidget):
         content_layout.setContentsMargins(10, 2, 10, 2)
         content_layout.setSpacing(5)
 
+    def build(self):
+        super(AssetWidget, self).build()
+        self.setMinimumHeight(40)
+
     def set_asset_info(self, asset_info):
         '''Update widget from asset data provided in *asset_info*'''
         self._version_id = asset_info[asset_constants.VERSION_ID]
+        # TODO: Do this async with a queue to improve performance, see thumbnail loading
         version = self.session.query(
             'AssetVersion where id={}'.format(self._version_id)
         ).one()
         # Calculate path
-        parent_path = [link['name'] for link in version['task']['link']]
+        parent_path = [
+            link['name'] for link in version['asset']['parent']['link']
+        ]
         self._path_widget.setText(' / '.join(parent_path))
         self._asset_name_widget.setText(
             '{} '.format(asset_info[asset_constants.ASSET_NAME])
         )
-
-        query = (
-            'select is_latest_version, id, asset, components, components.name, '
-            'components.id, version, asset , asset.name, asset.type.name from '
-            'AssetVersion where asset.id is "{}" and components.name is "{}"'
-            'order by version ascending'
-        ).format(
-            asset_info[asset_constants.ASSET_ID],
-            asset_info[asset_constants.COMPONENT_NAME],
-        )
-        versions = self.session.query(query).all()
-
-        self._versions_collection = versions
         self._version_nr = version['version']
         self._status_widget.set_status(version['status'])
         self._load_mode = asset_info[asset_constants.LOAD_MODE]
@@ -687,6 +707,8 @@ class AssetWidget(AccordionBaseWidget):
         self.set_indicator(
             asset_info.get(asset_constants.OBJECTS_LOADED) in [True, 'True']
         )
+        self._asset_id = asset_info[asset_constants.ASSET_ID]
+        self._component_name = asset_info[asset_constants.COMPONENT_NAME]
         self._component_path = (
             asset_info[asset_constants.COMPONENT_NAME] or '?.?'
         )
@@ -704,6 +726,7 @@ class AssetWidget(AccordionBaseWidget):
         self._asset_info_options = asset_info[
             asset_constants.ASSET_INFO_OPTIONS
         ]
+
         # Info
         self._published_by = version['user']
         self._published_date = version['date']
@@ -711,6 +734,7 @@ class AssetWidget(AccordionBaseWidget):
         self._version_dependency_ids = asset_info[
             asset_constants.DEPENDENCY_IDS
         ]
+        return version
 
     def matches(self, search_text):
         '''Do a simple match if this search text matches any asset attributes'''
@@ -768,8 +792,21 @@ class AssetWidget(AccordionBaseWidget):
                 self._component_and_version_widget.set_component_filename(
                     self._component_path
                 )
+
+                # Find other compatible versions
+                query = (
+                    'select is_latest_version, id, asset, components, components.name, '
+                    'components.id, version, asset , asset.name, asset.type.name from '
+                    'AssetVersion where asset.id is "{}" and components.name is "{}"'
+                    'order by version ascending'
+                ).format(
+                    self._asset_id,
+                    self._component_name,
+                )
+                versions = self.session.query(query).all()
+
                 self._component_and_version_widget.set_version(
-                    self._version_nr, versions=self._versions_collection
+                    self._version_nr, versions=versions
                 )
                 self._component_and_version_widget.set_latest_version(
                     self._is_latest_version
