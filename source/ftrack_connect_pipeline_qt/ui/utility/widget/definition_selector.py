@@ -536,9 +536,12 @@ class PublisherDefinitionSelector(DefinitionSelectorBase):
             self.definitions = items
 
             for item in items:
+                if item.get('batch') is True:
+                    # This publisher is only visible in batch mode
+                    continue
                 # Remove ' Publisher/Loader'
                 text = '{}'.format(' '.join(item.get('name').split(' ')[:-1]))
-                component_names_filter = None  # Outlined openable components
+                component_names_filter = None
 
                 if not self._definition_filters:
                     text = '{} - {}'.format(
