@@ -439,13 +439,16 @@ class QtAssetManagerClientWidget(QtAssetManagerClient, QtWidgets.QFrame):
                 index = self._asset_list_model.getIndex(key)
                 if index is None and self.snapshot_assets:
                     index = self.get_snapshot_list_model().getIndex(key)
+                    model = self.get_snapshot_list_model()
+                else:
+                    model = self._asset_list_model
                 if index is None:
                     continue
                 self.logger.debug(
-                    'Updating id {} @ position {}'.format(key, index)
+                    'Updating asset with id {} @ index {}'.format(key, index)
                 )
                 asset_info = value.get(list(value.keys())[0])
-                self._asset_list_model.setData(index, asset_info, silent=True)
+                model.setData(index, asset_info, silent=True)
                 do_refresh = True
             if do_refresh:
                 self.asset_manager_widget.refresh.emit()
@@ -490,7 +493,7 @@ class QtAssetManagerClientWidget(QtAssetManagerClient, QtWidgets.QFrame):
                 if index is None:
                     continue
                 self.logger.debug(
-                    'Updating id {} @ position {}'.format(key, index)
+                    'Updating asset with id {} @ index {}'.format(key, index)
                 )
                 asset_info = value
                 self._asset_list_model.setData(index, asset_info, silent=True)
@@ -542,7 +545,7 @@ class QtAssetManagerClientWidget(QtAssetManagerClient, QtWidgets.QFrame):
                     )
                     continue
                 self.logger.debug(
-                    'Updating id {} with loaded status'.format(key)
+                    'Updating id {} with unloaded status'.format(key)
                 )
                 # Set to loaded
                 asset_info[asset_const.OBJECTS_LOADED] = False
@@ -604,7 +607,7 @@ class QtAssetManagerClientWidget(QtAssetManagerClient, QtWidgets.QFrame):
                 if index is None:
                     continue
                 self.logger.debug(
-                    'Removing id {} with index {}'.format(key, index)
+                    'Removing asset with id {} at index {}'.format(key, index)
                 )
                 self._asset_list_model.removeRows(index)
         finally:

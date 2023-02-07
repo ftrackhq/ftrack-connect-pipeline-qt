@@ -3,7 +3,6 @@
 import json
 from functools import partial
 
-
 from Qt import QtWidgets, QtCore, QtCompat, QtGui
 
 from ftrack_connect_pipeline import constants as core_constants
@@ -316,15 +315,6 @@ class AssetManagerWidget(AssetManagerBaseWidget):
         else:
             return True
 
-    def ctx_select(self, plugin):
-        '''
-        Triggered when select action menu been clicked.
-        Emits select_asset signal.
-        '''
-        selection = self.selection()
-        if self.check_selection(selection):
-            self.selectAssets.emit(selection, plugin)
-
     def ctx_load(self, plugin):
         '''
         Triggered when load action menu been clicked.
@@ -346,6 +336,15 @@ class AssetManagerWidget(AssetManagerBaseWidget):
                 )
             else:
                 self.loadAssets.emit(selection, plugin)
+
+    def ctx_select(self, plugin):
+        '''
+        Triggered when select action menu been clicked.
+        Emits select_asset signal.
+        '''
+        selection = self.selection()
+        if self.check_selection(selection):
+            self.selectAssets.emit(selection, plugin)
 
     def ctx_update(self, plugin):
         '''
@@ -532,17 +531,27 @@ class AssetManagerListWidget(AssetListWidget):
         super(AssetManagerListWidget, self).post_build()
         # Do not distinguish between different model events,
         # always rebuild entire list from scratch for now.
-        self._model.rowsInserted.connect(self._on_asset_data_changed)
-        self._model.modelReset.connect(self._on_asset_data_changed)
-        self._model.rowsRemoved.connect(self._on_asset_data_changed)
-        self._model.dataChanged.connect(self._on_asset_data_changed)
+        self._model.rowsInserted.connect(
+            partial(self._on_asset_data_changed, 'rowsInserted')
+        )
+        self._model.modelReset.connect(
+            partial(self._on_asset_data_changed, 'modelReset')
+        )
+        self._model.rowsRemoved.connect(
+            partial(self._on_asset_data_changed, 'rowsRemoved')
+        )
+        self._model.dataChanged.connect(
+            partial(self._on_asset_data_changed, 'dataChanged')
+        )
 
-    def _on_asset_data_changed(self, *args):
+    def _on_asset_data_changed(self, model_data_change, *args):
         '''React upon change in asset model'''
-        self.rebuild()
+        self.rebuild(model_data_change=model_data_change)
 
-    def rebuild(self, add=True):
-        '''Clear widget and add all assets again from model.'''
+    def rebuild(self, model_data_change=None, add=True):
+        '''Clear widget and add all assets again from model, based on the *model_data_change* signal descriptor.
+        Support delayed widget add if *add* is False, in which case return a list of widgets instead.
+        '''
         clear_layout(self.layout())
         result = []
         # TODO: Save selection state
@@ -689,24 +698,23 @@ class AssetWidget(AccordionBaseWidget):
         '''Update widget from asset data provided in *asset_info*'''
         self._version_id = asset_info[asset_constants.VERSION_ID]
         # TODO: Do this async with a queue to improve performance, see thumbnail loading
-        version = self.session.query(
-            'AssetVersion where id={}'.format(self._version_id)
+        version_entity = self.session.query(
+            'select is_latest_version from AssetVersion where id={}'.format(
+                self._version_id
+            )
         ).one()
         # Calculate path
         parent_path = [
-            link['name'] for link in version['asset']['parent']['link']
+            link['name'] for link in version_entity['asset']['parent']['link']
         ]
         self._path_widget.setText(' / '.join(parent_path))
         self._asset_name_widget.setText(
             '{} '.format(asset_info[asset_constants.ASSET_NAME])
         )
-        self._version_nr = version['version']
-        self._status_widget.set_status(version['status'])
+        self._version_nr = version_entity['version']
+        self._status_widget.set_status(version_entity['status'])
         self._load_mode = asset_info[asset_constants.LOAD_MODE]
 
-        self.set_indicator(
-            asset_info.get(asset_constants.OBJECTS_LOADED) in [True, 'True']
-        )
         self._asset_id = asset_info[asset_constants.ASSET_ID]
         self._component_name = asset_info[asset_constants.COMPONENT_NAME]
         self._component_path = (
@@ -718,23 +726,41 @@ class AssetWidget(AccordionBaseWidget):
         self._component_and_version_header_widget.set_version(
             asset_info[asset_constants.VERSION_NUMBER]
         )
-        self._is_latest_version = asset_info[asset_constants.IS_LATEST_VERSION]
+        self._is_latest_version = version_entity['is_latest_version']
         self._component_and_version_header_widget.set_latest_version(
             self._is_latest_version
         )
+        indicator_color = 'gray'
+        self._is_loaded = asset_info.get(asset_constants.OBJECTS_LOADED) in [
+            True,
+            'True',
+        ]
+        if self._is_loaded:
+            if self._is_latest_version:
+                indicator_color = 'green'
+            else:
+                indicator_color = 'orange'
+                self.setToolTip(
+                    'There is a newer version available for this asset, right click and run "Update" to update it.'
+                )
+        self.set_indicator_color(indicator_color)
         self._load_mode = asset_info[asset_constants.LOAD_MODE]
         self._asset_info_options = asset_info[
             asset_constants.ASSET_INFO_OPTIONS
         ]
 
         # Info
-        self._published_by = version['user']
-        self._published_date = version['date']
+        self._published_by = version_entity['user']
+        self._published_date = version_entity['date']
         # Deps
         self._version_dependency_ids = asset_info[
             asset_constants.DEPENDENCY_IDS
         ]
-        return version
+        if not self._is_loaded:
+            self.setToolTip(
+                'Asset is unloaded, right click asset and select "Load" to load it.'
+            )
+        return version_entity
 
     def matches(self, search_text):
         '''Do a simple match if this search text matches any asset attributes'''
@@ -767,7 +793,9 @@ class AssetWidget(AccordionBaseWidget):
                 version = None
             else:
                 version = self.session.query(
-                    'AssetVersion where id={}'.format(self._version_id)
+                    'select task from AssetVersion where id={}'.format(
+                        self._version_id
+                    )
                 ).one()
 
             context_widget = QtWidgets.QWidget()

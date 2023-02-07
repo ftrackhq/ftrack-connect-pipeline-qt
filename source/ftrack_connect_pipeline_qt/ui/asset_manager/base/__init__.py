@@ -1,6 +1,7 @@
 # :coding: utf-8
 # :copyright: Copyright (c) 2014-2020 ftrack
 import platform
+import sys
 from functools import partial
 import shiboken2
 
@@ -163,6 +164,7 @@ class AssetManagerBaseWidget(QtWidgets.QWidget):
             self._splitter.setStretchFactor(0, 1)
             self._splitter.setStretchFactor(1, 1)
             self._splitter.setHandleWidth(1)
+            self._splitter.setSizes([10000, 10000])
 
             self.layout().addWidget(self._splitter, 100)
 
