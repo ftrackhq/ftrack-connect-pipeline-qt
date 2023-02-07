@@ -48,12 +48,12 @@ class AssetManagerBaseWidget(QtWidgets.QWidget):
     @property
     def snapshot_assets(self):
         '''Return True if should display separate list of snapshot assets.'''
-        return self.client.snapshot_assets
+        return self._client.snapshot_assets
 
     @property
     def is_assembler(self):
         '''Return asset list widget'''
-        return self.client.is_assembler
+        return self._client.is_assembler
 
     @property
     def asset_list(self):
@@ -71,12 +71,12 @@ class AssetManagerBaseWidget(QtWidgets.QWidget):
     @property
     def host_connection(self):
         '''Return the host connection'''
-        return self.client.host_connection
+        return self._client.host_connection
 
     @property
     def event_manager(self):
         '''Returns event_manager'''
-        return self.client.event_manager
+        return self._client.event_manager
 
     @property
     def engine_type(self):

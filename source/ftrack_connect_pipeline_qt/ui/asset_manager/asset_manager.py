@@ -731,10 +731,9 @@ class AssetWidget(AccordionBaseWidget):
             self._is_latest_version
         )
         indicator_color = 'gray'
-        self._is_loaded = asset_info.get(asset_constants.OBJECTS_LOADED) in [
-            True,
-            'True',
-        ]
+        self._is_loaded = (
+            asset_info.get(asset_constants.OBJECTS_LOADED) is True
+        )
         if self._is_loaded:
             if self._is_latest_version:
                 indicator_color = 'green'
