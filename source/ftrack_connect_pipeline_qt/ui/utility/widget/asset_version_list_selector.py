@@ -144,6 +144,7 @@ class AssetList(QtWidgets.QListWidget):
 
     def _query_assets_from_context_async(self, context_id, asset_type_name):
         '''(Run in background thread) Fetch assets from current context'''
+        # TODO: Move this to plugin call so this can be customized
         self._context_id = context_id
         self._asset_type_name = asset_type_name
         asset_type_entity = self.session.query(
@@ -216,7 +217,9 @@ class AssetList(QtWidgets.QListWidget):
         self.versionChanged.emit(asset_item)
 
     def _size_changed(self):
-        self.setFixedHeight(self.sizeHintForRow(0) * self.count() + 20) # Add some extra space to prevent unwanted scrolling
+        self.setFixedHeight(
+            self.sizeHintForRow(0) * self.count() + 20
+        )  # Add some extra space to prevent unwanted scrolling
 
 
 class AssetListSelector(QtWidgets.QFrame):

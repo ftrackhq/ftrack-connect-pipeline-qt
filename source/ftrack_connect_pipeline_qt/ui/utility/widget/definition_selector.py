@@ -285,6 +285,7 @@ class OpenerDefinitionSelector(DefinitionSelectorBase):
                     )
                 if asset_type_name and self._host_connection.context_id:
                     # Collect versions
+                    # TODO: Move this to plugin call so this can be customized
                     asset_versions = self._host_connection.session.query(
                         'AssetVersion where '
                         'task.id={} and asset.type.name="{}" order by date descending'.format(
