@@ -76,15 +76,15 @@ class BatchPublisherBaseWidget(QtWidgets.QWidget):
         '''Create objects widget.'''
         self.setLayout(QtWidgets.QVBoxLayout())
         self.layout().setAlignment(QtCore.Qt.AlignTop)
-        self.layout().setSpacing(0)
-        self.layout().setContentsMargins(0, 0, 0, 0)
+        self.layout().setSpacing(2)
+        self.layout().setContentsMargins(2, 2, 2, 2)
 
         # Create the data model, it will contain tuple of custom data with item data and definition being the first twp elements
         self.model = AssetListModel(self.client.event_manager)
 
     def build(self):
         '''Build widget.'''
-        self._label_info = QtWidgets.QLabel('No asset(s)')
+        self._label_info = QtWidgets.QLabel()
         self._label_info.setAlignment(
             QtCore.Qt.AlignRight | QtCore.Qt.AlignVCenter
         )
@@ -105,6 +105,7 @@ class BatchPublisherBaseWidget(QtWidgets.QWidget):
     def post_build(self):
         '''Build widget.'''
         self.itemPublished.connect(self._on_item_published)
+        self._update_info_label()
 
     def on_context_changed(self, context_id):
         '''Handle context change, should be overridden'''
@@ -134,26 +135,20 @@ class BatchPublisherBaseWidget(QtWidgets.QWidget):
         # Have client reflect upon checked items
         self.item_list.checkedUpdated.connect(self.client.refresh)
 
-        if self.level == 0:
-            self._label_info.setText(
-                'Listing {} {}'.format(
-                    self.model.rowCount(),
-                    'assets' if self.model.rowCount() > 1 else 'asset',
-                )
-            )
-        else:
-            self._label_info.setText(
-                '{} {}'.format(
-                    self.model.rowCount(),
-                    'dependency'
-                    if self.model.rowCount() == 1
-                    else 'dependencies',
-                )
-            )
+        self._update_info_label()
+
+    def _update_info_label(self):
+        raise NotImplementedError()
 
     def _item_selection_updated(self, selection):
         '''Handle selection update.'''
         pass
+
+    def on_log_item_added(self, log_item):
+        # Find the widget having options open
+        for item_widget in self.item_list.assets:
+            if item_widget.showing_options:
+                item_widget.factory.update_widget(log_item)
 
     def prepare_run_definition(self, definition, asset_path):
         '''Should be imlemented by child.'''
@@ -163,6 +158,10 @@ class BatchPublisherBaseWidget(QtWidgets.QWidget):
         '''Return amount publishable items (no recursion)'''
         item_widgets = self.item_list.checked()
         return len(item_widgets)
+
+    def can_publish(self):
+        '''Return True if there are publishable items'''
+        raise NotImplementedError()
 
     def run(self):
         '''Prepare and run batch publish of checked items, called recursively'''
@@ -186,21 +185,21 @@ class BatchPublisherBaseWidget(QtWidgets.QWidget):
             factory.progress_widget = (
                 progress_widget  # Have factory update main progress widget
             )
-            progress_widget.add_item(item)
+            progress_widget.add_item(item_widget.get_ident())
             progress_widget.add_step(
                 core_constants.CONTEXT,
-                item_widget.get_ident(),
+                core_constants.CONTEXT,
                 batch_id=item_widget.item_id,
                 indent=10 * self.level,
             )
-            factory.build_progress_ui(item_widget.item_id)
+            factory.build_progress_ui(
+                item_widget.item_id, item_widget.get_ident()
+            )
 
             item_widget.has_run = False
             self.client.prepare_queue.put(item_widget)
 
-            # Recursively add dependencies to progress widget and queue up
-            if item_widget.dependencies_batch_publisher_widget is not None:
-                item_widget.dependencies_batch_publisher_widget.run()
+            item_widget.run()
 
         if self.level > 0:
             return
@@ -216,7 +215,7 @@ class BatchPublisherBaseWidget(QtWidgets.QWidget):
         self.client.prepareNextItem.emit()
 
     def prepare_item(self, item_widget):
-        '''Prepare publish of a  single item'''
+        '''Prepare publish of a single item'''
 
         self.logger.info('Publishing {}'.format(item_widget.get_ident()))
         progress_widget = self.client.progress_widget
@@ -234,9 +233,9 @@ class BatchPublisherBaseWidget(QtWidgets.QWidget):
             definition = self.prepare_run_definition(item)
             progress_widget.update_step_status(
                 core_constants.CONTEXT,
-                item_widget.get_ident(),
+                core_constants.CONTEXT,
                 core_constants.SUCCESS_STATUS,
-                'Prepared publish',
+                'Prepared context',
                 {},
                 item_widget.item_id,
             )
@@ -318,15 +317,10 @@ class BatchPublisherBaseWidget(QtWidgets.QWidget):
         failed = self.failed
 
         for item_widget in item_widgets:
-            if item_widget.dependencies_batch_publisher_widget:
-                (
-                    _total,
-                    _succeeded,
-                    _failed,
-                ) = item_widget.dependencies_batch_publisher_widget.run_post()
-                total += _total
-                succeeded += _succeeded
-                failed += _failed
+            _total, _succeeded, _failed = item_widget.summarise()
+            total += _total
+            succeeded += _succeeded
+            failed += _failed
         return total, succeeded, failed
 
 
@@ -472,6 +466,7 @@ class ItemBaseWidget(AccordionBaseWidget):
         self._batch_publisher_widget = batch_publisher_widget
         self._item_id = str(uuid.uuid4())
         self._has_run = False
+        self.showing_options = False
         super(ItemBaseWidget, self).__init__(
             AccordionBaseWidget.SELECT_MODE_LIST,
             AccordionBaseWidget.CHECK_MODE_CHECKBOX,
@@ -554,9 +549,19 @@ class ItemBaseWidget(AccordionBaseWidget):
         header_layout.addWidget(self.info_message_widget)
         self.info_message_widget.setVisible(False)
 
+    def post_build(self):
+        super(ItemBaseWidget, self).post_build()
+        self.factory.widgetRunPlugin.connect(
+            self.batch_publisher_widget.client._on_run_plugin
+        )
+
     def _build_options(self):
         '''Build options overlay with factory'''
-        self._widget_factory.build(self.options_widget.main_widget)
+        self.factory.listen_widget_updates()
+        self.showing_options = (
+            True  # Make sure fetch plugin results get to the right place
+        )
+        self.factory.build(self.options_widget.main_widget)
         # Make sure we can save options on close
         self.options_widget.overlay_container.close_btn.clicked.connect(
             self._store_options
@@ -566,11 +571,16 @@ class ItemBaseWidget(AccordionBaseWidget):
 
     def _store_options(self):
         '''Serialize definition and store'''
-        updated_definition = self._widget_factory.to_json_object()
+        updated_definition = self.factory.to_json_object()
 
-        self._widget_factory.set_definition(updated_definition)
+        self.factory.end_widget_updates()
+
+        self.factory.set_definition(updated_definition)
+
         # Clear out overlay, not needed anymore
         clear_layout(self.options_widget.main_widget.layout())
+
+        self.showing_options = False
 
     def init_content(self, content_layout):
         '''No content in this accordion for now, should be implemented by DCC specific item widget'''
@@ -579,7 +589,7 @@ class ItemBaseWidget(AccordionBaseWidget):
     def set_data(self, definition):
         '''Update widget from data, should be overriden'''
         self._batch_publisher_widget.client.setup_widget_factory(
-            self._widget_factory, definition
+            self.factory, definition
         )
 
     def on_collapse(self, collapsed):
@@ -597,6 +607,14 @@ class ItemBaseWidget(AccordionBaseWidget):
     def update_item(self, project_context_id):
         '''Have item reflect upon change of *project_context_id*, must be implemented by child'''
         raise NotImplementedError()
+
+    def run(self):
+        '''Called during run of batch publisher, should be implemented by child'''
+        pass
+
+    def summarise(self):
+        '''Called after run of batch publisher, summarize additional child publishes. Should be implemented by child'''
+        return 0, 0, 0
 
     def run_callback(self, item_widget, event):
         '''Executed after an item has been published through event from pipeline, should be implemented by child'''

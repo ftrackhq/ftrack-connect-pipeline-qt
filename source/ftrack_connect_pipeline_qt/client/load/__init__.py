@@ -33,7 +33,7 @@ from ftrack_connect_pipeline_qt.utils import clear_layout
 from ftrack_connect_pipeline_qt.client.asset_manager import (
     QtAssetManagerClientWidget,
 )
-from ftrack_connect_pipeline_qt.ui.assembler.assembler import (
+from ftrack_connect_pipeline_qt.ui.assembler import (
     AssemblerDependenciesWidget,
     AssemblerBrowserWidget,
 )

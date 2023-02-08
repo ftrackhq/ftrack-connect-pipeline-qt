@@ -337,6 +337,6 @@ class BatchProgressWidget(ProgressWidgetObject):
         self.content_widget.layout().addWidget(version_widget)
 
     def add_item(self, item):
-        item_widget = QtWidgets.QLabel(str(item))
+        item_widget = QtWidgets.QLabel(item)
         item_widget.setObjectName('h2')
         self.content_widget.layout().addWidget(item_widget)

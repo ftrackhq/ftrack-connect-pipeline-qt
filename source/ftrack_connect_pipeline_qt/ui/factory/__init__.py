@@ -653,7 +653,6 @@ class WidgetFactoryBase(QtWidgets.QWidget):
         topic to call the _update_progress_widget function when the host returns and
         answer through the same topic
         '''
-
         self._subscriber_id = self.session.event_hub.subscribe(
             'topic={} and data.pipeline.host_id={}'.format(
                 core_constants.PIPELINE_CLIENT_PROGRESS_NOTIFICATION,

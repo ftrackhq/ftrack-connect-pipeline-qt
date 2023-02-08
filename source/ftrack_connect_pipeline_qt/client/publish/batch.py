@@ -242,6 +242,10 @@ class QtBatchPublisherClientWidget(QtPublisherClient, dialog.Dialog):
         plugin information and the *method* to be run has to be passed'''
         self.run_plugin(plugin_data, method, self.engine_type)
 
+    def _on_log_item_added(self, log_item):
+        ''' 'Called when widget fetch plugin is run'''
+        self.batch_publisher_widget.on_log_item_added(log_item)
+
     def _build_definition_selector(self):
         '''Build definition selector widget, must be implemented by child'''
         raise NotImplementedError()

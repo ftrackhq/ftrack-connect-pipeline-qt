@@ -65,6 +65,19 @@ class AccordionBaseWidget(QtWidgets.QFrame):
         '''Return True if accordion is checkable with a checkbox'''
         return self._check_mode == self.CHECK_MODE_CHECKBOX
 
+    @checkable.setter
+    def checkable(self, value):
+        '''Set the checkable property'''
+        self._check_mode = (
+            self.CHECK_MODE_CHECKBOX
+            if value
+            else self.CHECK_MODE_CHECKBOX_DISABLED
+        )
+        if self.header and self.header.checkbox:
+            self.header.checkbox.setEnabled(
+                self._check_mode == self.CHECK_MODE_CHECKBOX
+            )
+
     @property
     def collapsed(self):
         '''Return True if accordion is collapsed - content hidden (default)'''
@@ -93,15 +106,16 @@ class AccordionBaseWidget(QtWidgets.QFrame):
     @checked.setter
     def checked(self, value):
         '''Set the checked property'''
-        prev_checked = self._checked
-        self._checked = value
-        if self.header:
-            if self.check_mode == self.CHECK_MODE_CHECKBOX:
-                self.header.checkbox.setChecked(value)
-            self.header.title_label.setEnabled(self._checked)
-        self.enable_content()
-        if self._checked != prev_checked:
-            self.checkedStateChanged.emit(self)
+        if self.isEnabled():
+            prev_checked = self._checked
+            self._checked = value
+            if self.header:
+                if self.check_mode == self.CHECK_MODE_CHECKBOX:
+                    self.header.checkbox.setChecked(value)
+                self.header.title_label.setEnabled(self._checked)
+            self.enable_content()
+            if self._checked != prev_checked:
+                self.checkedStateChanged.emit(self)
 
     @property
     def header(self):
@@ -248,17 +262,6 @@ class AccordionBaseWidget(QtWidgets.QFrame):
                 retval = True
             self._selected = selected
             self.update_accordion()
-        return retval
-
-    def set_checked(self, checked):
-        '''Set checked property to *checked*, returns True is state changed'''
-        retval = False
-        if self.isEnabled():
-            if self._checked != checked:
-                retval = True
-            self._checked = checked
-            if self.header and self.header.checkbox:
-                self.header.checkbox.setChecked(checked)
         return retval
 
     def enable_content(self):

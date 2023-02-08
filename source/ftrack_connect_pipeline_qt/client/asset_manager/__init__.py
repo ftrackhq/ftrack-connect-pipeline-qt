@@ -19,7 +19,7 @@ from ftrack_connect_pipeline_qt.ui.utility.widget import (
     scroll_area,
     tab,
 )
-from ftrack_connect_pipeline_qt.ui.asset_manager.asset_manager import (
+from ftrack_connect_pipeline_qt.ui.asset_manager import (
     AssetManagerWidget,
     AssetWidget,
 )

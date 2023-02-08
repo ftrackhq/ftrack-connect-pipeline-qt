@@ -5,6 +5,7 @@ import copy
 from Qt import QtCore, QtWidgets
 
 from ftrack_connect_pipeline import constants as core_constants
+from ftrack_connect_pipeline.utils import str_version
 
 from ftrack_connect_pipeline_qt import constants as qt_constants
 from ftrack_connect_pipeline_qt.ui.factory.ui_overrides import (

@@ -26,7 +26,7 @@ from ftrack_connect_pipeline_qt.ui.factory.assembler import (
 from ftrack_connect_pipeline_qt.ui.utility.widget.base.accordion_base import (
     AccordionBaseWidget,
 )
-from ftrack_connect_pipeline_qt.ui.asset_manager.asset_manager import (
+from ftrack_connect_pipeline_qt.ui.asset_manager import (
     AssetVersionStatusWidget,
 )
 from ftrack_connect_pipeline.utils import str_version
