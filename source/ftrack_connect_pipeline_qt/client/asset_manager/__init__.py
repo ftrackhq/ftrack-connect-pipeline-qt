@@ -311,10 +311,9 @@ class QtAssetManagerClientWidget(QtAssetManagerClient, QtWidgets.QFrame):
                 target_list.append(ftrack_asset)
 
             self.asset_manager_widget.set_asset_list(asset_entities_list)
-            if self.snapshot_assets:
-                self.asset_manager_widget.set_snapshot_asset_list(
-                    snapshot_asset_entities_list
-                )
+            self.asset_manager_widget.set_snapshot_asset_list(
+                snapshot_asset_entities_list
+            )
             self.assetsDiscovered.emit()
         finally:
             self.asset_manager_widget.stopBusyIndicator.emit()

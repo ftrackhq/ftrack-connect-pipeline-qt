@@ -123,7 +123,7 @@ class AssemblerBaseWidget(QtWidgets.QWidget):
 
         top_toolbar_widget = QtWidgets.QWidget()
         top_toolbar_widget.setLayout(QtWidgets.QHBoxLayout())
-        top_toolbar_widget.layout().setContentsMargins(4, 2, 4, 0)
+        top_toolbar_widget.layout().setContentsMargins(4, 4, 4, 2)
         top_toolbar_widget.layout().setSpacing(4)
 
         top_widget = self._get_header_widget()

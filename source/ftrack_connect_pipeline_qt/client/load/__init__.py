@@ -146,8 +146,8 @@ class QtAssemblerClientWidget(QtLoaderClient, dialog.Dialog):
         self.layout().setAlignment(QtCore.Qt.AlignTop)
         self.layout().setSpacing(0)
         self.layout().setContentsMargins(16, 16, 16, 16)
+
         self.header = header.Header(self.session)
-        self.header.setMinimumHeight(50)
         # Create and add the asset manager client
         self.asset_manager = self.get_asset_manager_client()
 
@@ -159,6 +159,8 @@ class QtAssemblerClientWidget(QtLoaderClient, dialog.Dialog):
         self._left_widget.layout().setContentsMargins(0, 0, 0, 0)
         self._left_widget.layout().setSpacing(0)
 
+        self.header.setMinimumHeight(45)
+        self.header.setMaximumHeight(45)
         self._left_widget.layout().addWidget(self.header)
 
         self._left_widget.layout().addWidget(line.Line(style='solid'))
@@ -176,6 +178,7 @@ class QtAssemblerClientWidget(QtLoaderClient, dialog.Dialog):
         self.definition_selector.label_widget.setVisible(False)
         self.definition_selector.refreshed.connect(partial(self.refresh, True))
         self._left_widget.layout().addWidget(self.definition_selector)
+        self.definition_selector.setVisible(False)
 
         # Have a tabbed widget for the different import modes
 
@@ -198,6 +201,7 @@ class QtAssemblerClientWidget(QtLoaderClient, dialog.Dialog):
 
         self._tab_widget.addTab(self._browse_widget, 'Browse')
 
+        self._left_widget.layout().setSpacing(5)
         self._left_widget.layout().addWidget(self._tab_widget)
 
         if self.MODE_DEFAULT == self.ASSEMBLE_MODE_DEPENDENCIES:
@@ -210,6 +214,7 @@ class QtAssemblerClientWidget(QtLoaderClient, dialog.Dialog):
         button_widget.setLayout(QtWidgets.QHBoxLayout())
         button_widget.layout().setContentsMargins(2, 4, 8, 0)
         button_widget.layout().addStretch()
+        button_widget.layout().setSpacing(2)
         self.run_button_no_load = AddRunButton('ADD TO SCENE')
         button_widget.layout().addWidget(self.run_button_no_load)
         self.run_button = LoadRunButton('LOAD INTO SCENE')

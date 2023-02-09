@@ -2,6 +2,7 @@
 # :copyright: Copyright (c) 2014-2023 ftrack
 import json
 from functools import partial
+import shiboken2
 
 from Qt import QtWidgets, QtCore, QtCompat, QtGui
 
@@ -552,6 +553,9 @@ class AssetManagerListWidget(AssetListWidget):
         '''Clear widget and add all assets again from model, based on the *model_data_change* signal descriptor.
         Support delayed widget add if *add* is False, in which case return a list of widgets instead.
         '''
+        if not shiboken2.isValid(self):
+            # Widget has been delete
+            return
         clear_layout(self.layout())
         result = []
         # TODO: Save selection state
@@ -938,6 +942,9 @@ class AssetWidget(AccordionBaseWidget):
                 self.add_widget(line.Line())
 
             self.content.layout().addStretch()
+            self.setMinimumHeight(150)
+        else:
+            self.setMinimumHeight(50)
 
     def _on_version_selected(self, index):
         '''Change version of asset.'''
