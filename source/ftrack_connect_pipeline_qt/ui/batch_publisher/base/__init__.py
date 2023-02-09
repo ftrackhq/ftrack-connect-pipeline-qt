@@ -310,6 +310,9 @@ class BatchPublisherBaseWidget(QtWidgets.QWidget):
 
     def run_post(self):
         '''Summarize counts and store'''
+
+        self._abort_button.hide()
+
         item_widgets = self.item_list.checked(as_widgets=True)
 
         total = self.total
