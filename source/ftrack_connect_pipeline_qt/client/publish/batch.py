@@ -143,14 +143,14 @@ class QtBatchPublisherClientWidget(QtPublisherClient, dialog.Dialog):
         self.batch_publisher_widget = self._build_batch_publisher_widget()
         self.layout().addWidget(self.batch_publisher_widget, 1000)
 
-        button_widget = QtWidgets.QWidget()
-        button_widget.setLayout(QtWidgets.QHBoxLayout())
-        button_widget.layout().setContentsMargins(2, 4, 8, 0)
-        button_widget.layout().addStretch()
+        self.button_widget = QtWidgets.QWidget()
+        self.button_widget.setLayout(QtWidgets.QHBoxLayout())
+        self.button_widget.layout().setContentsMargins(2, 4, 8, 0)
+        self.button_widget.layout().addStretch()
         self.run_button = RunButton('PUBLISH')
         self.run_button.setFocus()
-        button_widget.layout().addWidget(self.run_button)
-        self.layout().addWidget(button_widget)
+        self.button_widget.layout().addWidget(self.run_button)
+        self.layout().addWidget(self.button_widget)
 
     def post_build(self):
         self.host_selector.hostChanged.connect(self.change_host)
