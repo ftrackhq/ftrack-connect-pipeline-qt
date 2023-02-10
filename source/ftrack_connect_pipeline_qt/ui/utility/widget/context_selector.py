@@ -35,6 +35,9 @@ class ContextSelector(QtWidgets.QFrame):
     @entity.setter
     def entity(self, value):
         '''Set the entity to *value*'''
+        # prevent setting the same entity twice
+        if value == self._entity:
+            return
         self._entity = value
         self.entity_info.entity = value
         self._context_id = value['id'] if value else None
@@ -137,6 +140,27 @@ class ContextSelector(QtWidgets.QFrame):
         self.layout().addWidget(QtWidgets.QLabel(), 10)
         self.layout().addWidget(self.entity_browse_button)
 
+        # Build entity browser:
+        self.entity_browser = EntityBrowser(
+            self.parent(),
+            self.session,
+            title='CHOOSE TASK (WORKING CONTEXT)'
+            if self._select_task
+            else 'CHOOSE CONTEXT',
+            mode=EntityBrowser.MODE_TASK
+            if self._select_task
+            else EntityBrowser.MODE_CONTEXT,
+        )
+        self.entity_browser.setMinimumWidth(600)
+        if self._entity:
+            self.entity_browser.entity = self._entity['parent']
+        elif self._browse_context_id:
+            self.entity_browser.entity_id = self._browse_context_id
+        else:
+            self.entity_browser.entity = None
+        if self.entity_browser.entity:
+            self.entity = self.entity_browser.entity
+
     def set_thumbnail(self, entity):
         '''Set the entity thumbnail'''
         self.thumbnail_widget.load(entity['id'])
@@ -191,27 +215,10 @@ class ContextSelector(QtWidgets.QFrame):
         '''Handle entity browse button clicked'''
 
         if self._enble_context_change:
-            entity_browser = EntityBrowser(
-                self.parent(),
-                self.session,
-                title='CHOOSE TASK (WORKING CONTEXT)'
-                if self._select_task
-                else 'CHOOSE CONTEXT',
-                mode=EntityBrowser.MODE_TASK
-                if self._select_task
-                else EntityBrowser.MODE_CONTEXT,
-            )
-            entity_browser.setMinimumWidth(600)
-            if self._entity:
-                entity_browser.entity = self._entity['parent']
-            elif self._browse_context_id:
-                entity_browser.entity_id = self._browse_context_id
-            else:
-                entity_browser.entity = None
-
             # Launch browser.
-            if entity_browser.exec_():
-                self.entity = entity_browser.entity
+            if self.entity_browser.exec_():
+                self.entity = self.entity_browser.entity
         else:
             # Let client decide what to do when user wants to change context
             self.changeContextClicked.emit()
+
