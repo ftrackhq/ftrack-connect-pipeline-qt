@@ -41,9 +41,16 @@ def on_launch_pipeline_qt(session, event):
     definitions_plugin_hook = os.getenv("FTRACK_DEFINITION_PLUGIN_PATH")
     plugin_hook = os.path.join(definitions_plugin_hook, 'qt', 'python')
 
+    qt_definitions_path = os.path.join(
+        plugin_base_dir, 'resource', 'definitions'
+    )
+
     qt_base_data['integration']['env'] = {
         'PYTHONPATH.prepend': python_dependencies,
-        'FTRACK_EVENT_PLUGIN_PATH.prepend': plugin_hook,
+        'FTRACK_EVENT_PLUGIN_PATH.prepend': os.path.pathsep.join(
+            [plugin_hook, qt_definitions_path]
+        ),
+        'FTRACK_DEFINITION_PATH.prepend': qt_definitions_path,
     }
 
     return qt_base_data
