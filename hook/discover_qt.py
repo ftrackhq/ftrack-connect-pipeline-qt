@@ -42,9 +42,7 @@ def on_launch_pipeline_qt(session, event):
         plugin_base_dir, 'resource', 'plugins', 'python'
     )
 
-    qt_bootstrap_path = os.path.join(
-        plugin_base_dir, 'resource', 'bootstrap'
-    )
+    qt_bootstrap_path = os.path.join(plugin_base_dir, 'resource', 'bootstrap')
 
     qt_bootstrap_plugin_path = os.path.join(qt_bootstrap_path, 'plugins')
 
