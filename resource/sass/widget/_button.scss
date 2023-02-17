@@ -174,13 +174,13 @@ AddRunButton,TrackButton {
     padding-right: 14px;
 }
 
-AddRunButton,TrackButton:hover {
+AddRunButton:hover, TrackButton:hover {
     color: lighten($color-cyan, 5%);
     border: 1px solid lighten($color-cyan, 5%);
     background: darken($color-cyan, 50%);
 }
 
-AddRunButton,TrackButton:disabled {
+AddRunButton:disabled, TrackButton:disabled {
     color: darken($color-cyan, 50%);
     border: 1px solid darken($color-cyan, 50%);
 }

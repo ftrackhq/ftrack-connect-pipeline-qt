@@ -375,6 +375,7 @@ class AssemblerBaseWidget(QtWidgets.QWidget):
                             definition_fragment = DefinitionObject({})
                             for key in definition:
                                 if key == core_constants.COMPONENTS:
+                                    # Have that as the only component
                                     definition_fragment[key] = DefinitionList(
                                         [
                                             DefinitionObject(
@@ -382,9 +383,17 @@ class AssemblerBaseWidget(QtWidgets.QWidget):
                                             )
                                         ]
                                     )
-                                    definition_fragment.get_first(
-                                        type=core_constants.COMPONENT
-                                    )['name'] = component_name_effective
+                                    component_fragment = (
+                                        definition_fragment.get_first(
+                                            type=core_constants.COMPONENT
+                                        )
+                                    )
+                                    # Make sure component name align
+                                    component_fragment[
+                                        'name'
+                                    ] = component_name_effective
+                                    # It can be disabled, enable it
+                                    component_fragment['enabled'] = True
                                 else:
                                     # Copy the category
                                     definition_fragment[key] = copy.deepcopy(

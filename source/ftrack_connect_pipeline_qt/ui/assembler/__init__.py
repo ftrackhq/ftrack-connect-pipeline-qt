@@ -489,9 +489,12 @@ class AssemblerBrowserWidget(AssemblerBaseWidget):
         if self._component_list:
             self._component_list.on_search(text)
 
-    def _on_version_changed(self, widget, version_entity):
+    def _on_version_changed(self, widget, version_id):
         '''User request a change of version, check that the new version
         has the component and it matches.'''
+        version_entity = self.client.session.query(
+            'AssetVersion where id={}'.format(version_id)
+        ).one()
         current_component = self.client.session.query(
             'Component where id={}'.format(widget.component_id)
         ).one()
@@ -520,19 +523,14 @@ class AssemblerBrowserWidget(AssemblerBaseWidget):
             matching_definitions = self.model.data(widget.index)[1]
             # Replace version ID for importer
             for definition in matching_definitions:
-                for context in definition.get_all(type=core_constants.CONTEXT):
-                    for stage in context.get_all(
-                        category=core_constants.STAGE
-                    ):
-                        for plugin in stage.get_all(
-                            category=core_constants.PLUGIN
-                        ):
-                            if 'options' in plugin:
-                                options = plugin['options']
-                                options['version_id'] = version_entity['id']
-                                options['version_number'] = version_entity[
-                                    'version'
-                                ]
+                for plugin in definition.get_all(
+                    type=core_constants.CONTEXT,
+                    category=core_constants.PLUGIN,
+                ):
+                    if 'options' in plugin:
+                        options = plugin['options']
+                        options['version_id'] = version_entity['id']
+                        options['version_number'] = version_entity['version']
             location = self.session.pick_location()
             self.model.setData(
                 widget.index,

@@ -221,4 +221,3 @@ class ContextSelector(QtWidgets.QFrame):
         else:
             # Let client decide what to do when user wants to change context
             self.changeContextClicked.emit()
-
