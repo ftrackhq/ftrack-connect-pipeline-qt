@@ -42,15 +42,20 @@ def on_launch_pipeline_qt(session, event):
         plugin_base_dir, 'resource', 'plugins', 'python'
     )
 
-    qt_bootstrap_path = os.path.join(
-        plugin_base_dir, 'resource', 'bootstrap'
-    )
+    qt_bootstrap_path = os.path.join(plugin_base_dir, 'resource', 'bootstrap')
 
     qt_bootstrap_plugin_path = os.path.join(qt_bootstrap_path, 'plugins')
 
+    qt_definitions_path = os.path.join(
+        plugin_base_dir, 'resource', 'definitions'
+    )
+
     qt_base_data['integration']['env'] = {
         'PYTHONPATH.prepend': python_dependencies,
-        'FTRACK_EVENT_PLUGIN_PATH.prepend': qt_plugins_path,
+        'FTRACK_EVENT_PLUGIN_PATH.prepend': os.path.pathsep.join(
+            [qt_plugins_path, qt_definitions_path]
+        ),
+        'FTRACK_DEFINITION_PATH.prepend': qt_definitions_path,
     }
 
     return qt_base_data
