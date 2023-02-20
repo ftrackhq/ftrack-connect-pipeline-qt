@@ -9,6 +9,12 @@ Release Notes
 
 .. release:: upcoming
 
+    .. change:: changed
+        :tags: definitions
+
+        Remove ftrack-connect-pipeline-definitions repository.
+        Add plugins and definitions on each integration.
+
     .. change:: fix
 
         Added spacer to option widget overlays.
