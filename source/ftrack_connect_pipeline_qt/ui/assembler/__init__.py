@@ -649,7 +649,9 @@ class DependenciesListWidget(AssemblerListBaseWidget):
 class BrowserListWidget(AssemblerListBaseWidget):
     '''Custom asset manager list view'''
 
-    versionChanged = QtCore.Signal(object, object)
+    versionChanged = QtCore.Signal(
+        object, object
+    )  # Signal emitted when a version is changed, widget and version id as arguments
 
     def __init__(self, assembler_widget, parent=None):
         '''
@@ -739,9 +741,9 @@ class BrowserListWidget(AssemblerListBaseWidget):
             self.refresh(text.lower())
             self.prev_search_text = text
 
-    def _on_version_change(self, widget, version_entity):
-        '''Another version has been selected by user, emit event'''
-        self.versionChanged.emit(widget, version_entity)
+    def _on_version_change(self, widget, version_id):
+        '''Another version has been selected by user on *widget*, relay event passing on *widget* and *version_id*'''
+        self.versionChanged.emit(widget, version_id)
 
 
 class DependencyComponentWidget(ComponentBaseWidget):
@@ -811,7 +813,9 @@ class DependencyComponentWidget(ComponentBaseWidget):
 class BrowsedComponentWidget(ComponentBaseWidget):
     '''Widget representation of a browsed asset (component)'''
 
-    versionChanged = QtCore.Signal(object)  # Emitted when user changes version
+    versionChanged = QtCore.Signal(
+        object
+    )  # Emitted when user changes version, version id as argument
 
     def __init__(self, index, assembler_widget, event_manager, parent=None):
         '''
@@ -915,9 +919,9 @@ class BrowsedComponentWidget(ComponentBaseWidget):
         self._path_widget.setText(' / '.join(sub_path))
         self._path_widget.setVisible(len(sub_path) > 0)
 
-    def _on_version_changed(self, entity_version):
-        '''Another version has been selected by user, emit event'''
-        self.versionChanged.emit(entity_version)
+    def _on_version_changed(self, version_id):
+        '''A different version has been selected by user, relay event passing on *version_id*'''
+        self.versionChanged.emit(version_id)
 
     def matches(self, search_text):
         '''Do a simple match if this search text matches my attributes'''
