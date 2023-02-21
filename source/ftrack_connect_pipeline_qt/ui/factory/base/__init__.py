@@ -72,12 +72,12 @@ class BaseUIWidgetObject(object):
         self._is_optional = False
         self._is_enabled = True
         self.description = None
-        self._is_selected = True
         if self.fragment_data:
             self.description = self.fragment_data.get(
                 'description', 'No description provided'
             )
-            self._is_selected = self.fragment_data.get('selected', True)
+            self._is_optional = self.fragment_data.get('optional', False)
+            self._is_enabled = self.fragment_data.get('enabled', True)
         self.pre_build()
         self.build()
         self.post_build()

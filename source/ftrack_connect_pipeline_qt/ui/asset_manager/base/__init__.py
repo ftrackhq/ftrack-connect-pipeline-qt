@@ -1,9 +1,11 @@
 # :coding: utf-8
 # :copyright: Copyright (c) 2014-2020 ftrack
 import platform
+import sys
+from functools import partial
+import shiboken2
 
 from Qt import QtWidgets, QtCore
-import shiboken2
 
 from ftrack_connect_pipeline_qt.ui.utility.widget.search import Search
 from ftrack_connect_pipeline_qt.ui.utility.widget.base.accordion_base import (
@@ -15,15 +17,66 @@ from ftrack_connect_pipeline_qt.ui.utility.widget import scroll_area
 class AssetManagerBaseWidget(QtWidgets.QWidget):
     '''Base widget of the asset manager'''
 
+    refresh = QtCore.Signal()  # Refresh asset list from model
+    rebuild = QtCore.Signal()  # Fetch assets from DCC and update model
+
+    changeAssetVersion = QtCore.Signal(
+        object, object
+    )  # User has requested a change of asset version
+    selectAssets = QtCore.Signal(object, object)  # Select assets in DCC
+    removeAssets = QtCore.Signal(object, object)  # Remove assets from DCC
+    updateAssets = QtCore.Signal(
+        object, object
+    )  # Update DCC assets to latest version
+    loadAssets = QtCore.Signal(object, object)  # Load assets into DCC
+    unloadAssets = QtCore.Signal(object, object)  # Unload assets from DCC
+
+    stopBusyIndicator = QtCore.Signal()  # Stop spinner and hide it
+
+    DEFAULT_ACTIONS = {
+        'select': [{'ui_callback': 'ctx_select', 'name': 'select_asset'}],
+        'remove': [{'ui_callback': 'ctx_remove', 'name': 'remove_asset'}],
+        'load': [{'ui_callback': 'ctx_load', 'name': 'load_asset'}],
+        'unload': [{'ui_callback': 'ctx_unload', 'name': 'unload_asset'}],
+    }
+
+    @property
+    def client(self):
+        '''Return asset list widget'''
+        return self._client
+
+    @property
+    def snapshot_assets(self):
+        '''Return True if should display separate list of snapshot assets.'''
+        return self._client.snapshot_assets
+
+    @property
+    def is_assembler(self):
+        '''Return asset list widget'''
+        return self._client.is_assembler
+
+    @property
+    def asset_list(self):
+        '''Return asset list widget'''
+        return self._asset_list
+
+    @property
+    def asset_list_container(self):
+        return self._asset_list_container
+
+    @property
+    def snapshot_asset_list_container(self):
+        return self._snapshot_asset_list_container
+
+    @property
+    def host_connection(self):
+        '''Return the host connection'''
+        return self._client.host_connection
+
     @property
     def event_manager(self):
         '''Returns event_manager'''
-        return self._event_manager
-
-    @property
-    def session(self):
-        '''Returns Session'''
-        return self.event_manager.session
+        return self._client.event_manager
 
     @property
     def engine_type(self):
@@ -35,9 +88,12 @@ class AssetManagerBaseWidget(QtWidgets.QWidget):
         '''Sets the engine_type with the given *value*'''
         self._engine_type = value
 
-    def __init__(
-        self, is_assembler, event_manager, asset_list_model, parent=None
-    ):
+    @property
+    def session(self):
+        '''Returns Session'''
+        return self.event_manager.session
+
+    def __init__(self, asset_manager_client, asset_list_model, parent=None):
         '''
         Initialize asset manager widget
 
@@ -48,10 +104,12 @@ class AssetManagerBaseWidget(QtWidgets.QWidget):
         '''
         super(AssetManagerBaseWidget, self).__init__(parent=parent)
 
-        self._is_assembler = is_assembler
-        self._event_manager = event_manager
+        self._client = asset_manager_client
+        self._asset_list = None
         self._asset_list_model = asset_list_model
         self._engine_type = None
+        self._asset_list_container = None
+        self._snapshot_asset_list_container = None
 
         self.pre_build()
         self.build()
@@ -62,6 +120,14 @@ class AssetManagerBaseWidget(QtWidgets.QWidget):
         self.setLayout(QtWidgets.QVBoxLayout(self))
         self.layout().setContentsMargins(0, 0, 0, 0)
         self.layout().setSpacing(0)
+
+        self.scroll_area = scroll_area.ScrollArea()
+        if self.client.snapshot_assets:
+            self.snapshot_scroll_area = scroll_area.ScrollArea()
+
+    def build_asset_list_container(self, scroll_widget, snapshot=False):
+        '''Return the widget enclosing the asset list, can be overidden by child'''
+        return AssetListContainerWidget(scroll_widget)
 
     def build_header(self, layout):
         '''Build the asset manager header and add to *layout*. To be overridden by child'''
@@ -76,10 +142,31 @@ class AssetManagerBaseWidget(QtWidgets.QWidget):
         self.build_header(self._header.layout())
         self.layout().addWidget(self._header)
 
-        self.scroll = scroll_area.ScrollArea()
-        self.scroll.setWidgetResizable(True)
-        self.scroll.setHorizontalScrollBarPolicy(QtCore.Qt.ScrollBarAlwaysOff)
-        self.layout().addWidget(self.scroll, 100)
+        self.scroll_area.setWidgetResizable(True)
+        self.scroll_area.setHorizontalScrollBarPolicy(
+            QtCore.Qt.ScrollBarAlwaysOff
+        )
+
+        if not self.client.snapshot_assets:
+            # A single list of ftrack assets
+            self.layout().addWidget(self.asset_list_container, 100)
+        else:
+            # Create a scroll area for snapshot component list
+            self.snapshot_scroll_area.setWidgetResizable(True)
+            self.snapshot_scroll_area.setHorizontalScrollBarPolicy(
+                QtCore.Qt.ScrollBarAlwaysOff
+            )
+
+            # Put into a split view
+            self._splitter = QtWidgets.QSplitter(QtCore.Qt.Horizontal)
+            self._splitter.addWidget(self.asset_list_container)
+            self._splitter.addWidget(self.snapshot_asset_list_container)
+            self._splitter.setStretchFactor(0, 1)
+            self._splitter.setStretchFactor(1, 1)
+            self._splitter.setHandleWidth(1)
+            self._splitter.setSizes([10000, 10000])
+
+            self.layout().addWidget(self._splitter, 100)
 
     def post_build(self):
         '''Post Build ui method for events connections.'''
@@ -88,13 +175,40 @@ class AssetManagerBaseWidget(QtWidgets.QWidget):
     def init_search(self):
         '''Create search input'''
         self._search = Search(
-            collapsed=self._is_assembler, collapsable=self._is_assembler
+            collapsed=self.is_assembler, collapsable=self.is_assembler
         )
         self._search.inputUpdated.connect(self.on_search)
         return self._search
 
     def on_search(self, text):
         '''Search in the current model, to be implemented by child.'''
+        pass
+
+
+class AssetListContainerWidget(QtWidgets.QWidget):
+    '''Container widget for asset list widget, allows for DCC overrides with
+    additional toolings'''
+
+    def __init__(self, scroll_widget, parent=None):
+        super(AssetListContainerWidget, self).__init__(parent=parent)
+        self._scroll_widget = scroll_widget
+        self._header_widget = None
+
+        self.pre_build()
+        self.build()
+        self.post_build()
+
+    def pre_build(self):
+        self.setLayout(QtWidgets.QVBoxLayout())
+        self.layout().setContentsMargins(0, 0, 0, 0)
+        self.layout().setSpacing(0)
+
+    def build(self):
+        if self._header_widget:
+            self.layout().addWidget(self._header_widget)
+        self.layout().addWidget(self._scroll_widget, 1000)
+
+    def post_build(self):
         pass
 
 
@@ -106,11 +220,20 @@ class AssetListWidget(QtWidgets.QWidget):
     selectionUpdated = QtCore.Signal(
         object
     )  # Emitted when selection has been updated
+
+    checkedUpdated = QtCore.Signal(
+        object
+    )  # Emitted when checked state has been updated
+
     refreshed = QtCore.Signal()  # Should be emitted when list has been rebuilt
 
     @property
     def model(self):
         return self._model
+
+    @property
+    def item_widget_class(self):
+        return self._item_widget_class
 
     @property
     def assets(self):
@@ -120,7 +243,11 @@ class AssetListWidget(QtWidgets.QWidget):
             if widget and isinstance(widget, AccordionBaseWidget):
                 yield widget
 
-    def __init__(self, model, parent=None):
+    @property
+    def count(self):
+        return self.model.rowCount()
+
+    def __init__(self, model, item_widget_class, parent=None):
         '''
         Initialize asset list widget
 
@@ -129,6 +256,7 @@ class AssetListWidget(QtWidgets.QWidget):
         '''
         super(AssetListWidget, self).__init__(parent=parent)
         self._model = model
+        self._item_widget_class = item_widget_class
         self.was_clicked = False
 
         self.pre_build()
@@ -151,7 +279,7 @@ class AssetListWidget(QtWidgets.QWidget):
         raise NotImplementedError()
 
     def selection(self, as_widgets=False):
-        '''Return list of asset infos or asset widgets if *as_widgets* is True'''
+        '''Return list of selected model data or asset widgets if *as_widgets* is True'''
         result = []
         for widget in self.assets:
             if widget.selected:
@@ -163,6 +291,32 @@ class AssetListWidget(QtWidgets.QWidget):
                         # Data has changed
                         return None
                     result.append(data)
+        return result
+
+    def checked(self, as_widgets=False):
+        '''Return list of checked model data or asset widgets if *as_widgets* is True'''
+        result = []
+        for widget in self.assets:
+            if widget.checked:
+                if as_widgets:
+                    result.append(widget)
+                else:
+                    data = self.model.data(widget.index)
+                    if data is None:
+                        # Data has changed
+                        return None
+                    result.append(data)
+        return result
+
+    def items(self):
+        '''Return a list of all tuples, (data, widget), of all assets in list'''
+        result = []
+        for widget in self.assets:
+            data = self.model.data(widget.index)
+            if data is None:
+                # Data has changed
+                return None
+            result.append((data, widget))
         return result
 
     def clear_selection(self):
@@ -219,6 +373,19 @@ class AssetListWidget(QtWidgets.QWidget):
             selection = self.selection()
             if selection is not None:
                 self.selectionUpdated.emit(selection)
+
+    def asset_checked(self, asset_widget):
+        self.checkedUpdated.emit(self.checked())
+
+    def add_widget(self, widget):
+        self.layout().addWidget(widget)
+        self.setup_widget(widget)
+
+    def setup_widget(self, widget):
+        '''Initialize accordion asset widget, ignore other types of widget in list'''
+        if isinstance(widget, AccordionBaseWidget):
+            widget.clicked.connect(partial(self.asset_clicked, widget))
+            widget.checkedStateChanged.connect(self.asset_checked)
 
     def get_widget(self, index):
         '''Return the asset widget representation at *index*'''

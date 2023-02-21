@@ -166,7 +166,7 @@ OpenAssemblerButton:hover {
     background: darken($gray-dark, 50%);
 }
 
-AddRunButton {
+AddRunButton,TrackButton {
     color: $color-cyan;
     border: 1px solid $color-cyan;
     border-radius: 3px;
@@ -174,13 +174,13 @@ AddRunButton {
     padding-right: 14px;
 }
 
-AddRunButton:hover {
+AddRunButton:hover, TrackButton:hover {
     color: lighten($color-cyan, 5%);
     border: 1px solid lighten($color-cyan, 5%);
     background: darken($color-cyan, 50%);
 }
 
-AddRunButton:disabled {
+AddRunButton:disabled, TrackButton:disabled {
     color: darken($color-cyan, 50%);
     border: 1px solid darken($color-cyan, 50%);
 }

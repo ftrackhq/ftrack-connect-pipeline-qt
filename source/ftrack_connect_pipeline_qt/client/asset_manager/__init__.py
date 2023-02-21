@@ -17,9 +17,14 @@ from ftrack_connect_pipeline_qt.ui.utility.widget import (
     host_selector,
     line,
     scroll_area,
+    tab,
 )
-from ftrack_connect_pipeline_qt.ui.asset_manager.asset_manager import (
+from ftrack_connect_pipeline_qt.ui.asset_manager import (
     AssetManagerWidget,
+    AssetWidget,
+)
+from ftrack_connect_pipeline_qt.ui.asset_manager.model import (
+    AssetListModel,
 )
 from ftrack_connect_pipeline_qt.ui.utility.widget.context_selector import (
     ContextSelector,
@@ -55,6 +60,18 @@ class QtAssetManagerClientWidget(QtAssetManagerClient, QtWidgets.QFrame):
         object, object
     )  # A message, with a title amended, has been picked up from the asset management subsystem
 
+    snapshot_assets = (
+        False  # Have asset manager render snapshot assets separately
+    )
+
+    @property
+    def asset_manager_widget(self):
+        return self._asset_manager_widget
+
+    @asset_manager_widget.setter
+    def asset_manager_widget(self, value):
+        self._asset_manager_widget = value
+
     def __init__(
         self,
         event_manager,
@@ -81,6 +98,7 @@ class QtAssetManagerClientWidget(QtAssetManagerClient, QtWidgets.QFrame):
             self, event_manager, multithreading_enabled=multithreading_enabled
         )
 
+        self._asset_manager = None
         self.is_assembler = is_assembler
 
         ''' Flag telling if widget has been shown before and needs refresh '''
@@ -110,18 +128,28 @@ class QtAssetManagerClientWidget(QtAssetManagerClient, QtWidgets.QFrame):
 
     # Build
 
+    def build_asset_manager_widget(self):
+        '''Build the asset manager widget, can be overidden by DCC'''
+        return AssetManagerWidget(self, self._asset_list_model)
+
     def pre_build(self):
         '''Prepare general layout.'''
         self.setLayout(QtWidgets.QVBoxLayout())
         self.layout().setContentsMargins(0, 0, 0, 0)
         self.layout().setSpacing(0)
 
-        self.asset_manager_widget = AssetManagerWidget(
-            self, self._asset_list_model
-        )
+        self.asset_manager_widget = self.build_asset_manager_widget()
 
         if self.is_assembler:
             set_property(self, 'assembler', 'true')
+
+    def get_snapshot_asset_widget_class(self):
+        '''(Optional, required if snapshot_assets property is set) Return snapshot asset widget class, to be overidden by child DCC'''
+        return AssetWidget  # Provide default
+
+    def get_snapshot_list_model(self):
+        '''(Optional, required if snapshot_assets property is set) Return snapshot list model, to be overidden by child DCC'''
+        return AssetListModel(self.event_manager)  # Provide default
 
     def build(self):
         '''Build widgets and parent them.'''
@@ -141,9 +169,9 @@ class QtAssetManagerClientWidget(QtAssetManagerClient, QtWidgets.QFrame):
 
             self.layout().addWidget(line.Line())
 
-        self.scroll = scroll_area.ScrollArea()
-        self.scroll.setWidgetResizable(True)
-        self.layout().addWidget(self.scroll, 100)
+        self._main_scroll = scroll_area.ScrollArea()
+        self._main_scroll.setWidgetResizable(True)
+        self.layout().addWidget(self._main_scroll, 100)
 
         if self.is_assembler:
             button_widget = QtWidgets.QWidget()
@@ -189,6 +217,10 @@ class QtAssetManagerClientWidget(QtAssetManagerClient, QtWidgets.QFrame):
             self.asset_manager_widget.asset_list.selectionUpdated.connect(
                 self._on_am_widget_selection_updated
             )
+            if self.asset_manager_widget.set_snapshot_asset_list:
+                self.asset_manager_widget.snapshot_asset_list.selectionUpdated.connect(
+                    self._on_am_widget_selection_updated
+                )
 
         self.selectionUpdated.connect(self._on_am_selection_updated)
         self.setMinimumWidth(300)
@@ -205,7 +237,6 @@ class QtAssetManagerClientWidget(QtAssetManagerClient, QtWidgets.QFrame):
     def on_host_changed(self, host_connection):
         '''Triggered when client has set host connection'''
         self._reset_asset_list()
-        # self.asset_manager_widget.set_asset_list(self.asset_entities_list)
         if not host_connection:
             return
 
@@ -223,7 +254,7 @@ class QtAssetManagerClientWidget(QtAssetManagerClient, QtWidgets.QFrame):
         self.asset_manager_widget.engine_type = self.engine_type
         self.asset_manager_widget.set_context_actions(self.menu_action_plugins)
 
-        self.scroll.setWidget(self.asset_manager_widget)
+        self._main_scroll.setWidget(self.asset_manager_widget)
 
     # Context
 
@@ -270,11 +301,19 @@ class QtAssetManagerClientWidget(QtAssetManagerClient, QtWidgets.QFrame):
                 self.assetsDiscovered.emit()
                 return
             asset_entities_list = []
+            snapshot_asset_entities_list = []
             for ftrack_asset in event['data']:
-                if ftrack_asset not in self._asset_list_model.items():
-                    asset_entities_list.append(ftrack_asset)
+                target_list = (
+                    asset_entities_list
+                    if not ftrack_asset.get(asset_const.IS_SNAPSHOT) is True
+                    else snapshot_asset_entities_list
+                )
+                target_list.append(ftrack_asset)
 
             self.asset_manager_widget.set_asset_list(asset_entities_list)
+            self.asset_manager_widget.set_snapshot_asset_list(
+                snapshot_asset_entities_list
+            )
             self.assetsDiscovered.emit()
         finally:
             self.asset_manager_widget.stopBusyIndicator.emit()
@@ -300,8 +339,10 @@ class QtAssetManagerClientWidget(QtAssetManagerClient, QtWidgets.QFrame):
         '''Called when asset(s) have been selected'''
         self.asset_manager_widget.stopBusyIndicator.emit()
 
-    def _on_am_widget_selection_updated(self, selected_assets):
+    def _on_am_widget_selection_updated(self, unused_selected_assets):
         '''Called when asset(s) have been selected in the asset manager widget'''
+        # Collect selected assets from both lists
+        selected_assets = self.asset_manager_widget.selection()
         self.selectionUpdated.emit(selected_assets)
         self.asset_manager_widget.stopBusyIndicator.emit()
 
@@ -348,6 +389,10 @@ class QtAssetManagerClientWidget(QtAssetManagerClient, QtWidgets.QFrame):
                         self.onAssetManagerMessage.emit(value, 'Load asset')
                     continue
                 asset_info = self._asset_list_model.getDataById(key)
+                if asset_info is None and self.snapshot_assets:
+                    asset_info = self.get_snapshot_list_model().getDataById(
+                        key
+                    )
                 if asset_info is None:
                     continue
                 self.logger.debug(
@@ -391,13 +436,18 @@ class QtAssetManagerClientWidget(QtAssetManagerClient, QtWidgets.QFrame):
                         self.onAssetManagerMessage.emit(value, 'Update asset')
                     continue
                 index = self._asset_list_model.getIndex(key)
+                if index is None and self.snapshot_assets:
+                    index = self.get_snapshot_list_model().getIndex(key)
+                    model = self.get_snapshot_list_model()
+                else:
+                    model = self._asset_list_model
                 if index is None:
                     continue
                 self.logger.debug(
-                    'Updating id {} @ position {}'.format(key, index)
+                    'Updating asset with id {} @ index {}'.format(key, index)
                 )
                 asset_info = value.get(list(value.keys())[0])
-                self._asset_list_model.setData(index, asset_info, silent=True)
+                model.setData(index, asset_info, silent=True)
                 do_refresh = True
             if do_refresh:
                 self.asset_manager_widget.refresh.emit()
@@ -437,10 +487,12 @@ class QtAssetManagerClientWidget(QtAssetManagerClient, QtWidgets.QFrame):
                         )
                     continue
                 index = self._asset_list_model.getIndex(key)
+                if index is None and self.snapshot_assets:
+                    index = self.get_snapshot_list_model().getIndex(key)
                 if index is None:
                     continue
                 self.logger.debug(
-                    'Updating id {} @ position {}'.format(key, index)
+                    'Updating asset with id {} @ index {}'.format(key, index)
                 )
                 asset_info = value
                 self._asset_list_model.setData(index, asset_info, silent=True)
@@ -480,6 +532,10 @@ class QtAssetManagerClientWidget(QtAssetManagerClient, QtWidgets.QFrame):
                         self.onAssetManagerMessage.emit(value, 'Unload asset')
                     continue
                 asset_info = self._asset_list_model.getDataById(key)
+                if asset_info is None and self.snapshot_assets:
+                    asset_info = self.get_snapshot_list_model().getDataById(
+                        key
+                    )
                 if asset_info is None:
                     self.logger.warning(
                         'Could not find recently unloaded asset: {} (event: {})'.format(
@@ -488,7 +544,7 @@ class QtAssetManagerClientWidget(QtAssetManagerClient, QtWidgets.QFrame):
                     )
                     continue
                 self.logger.debug(
-                    'Updating id {} with loaded status'.format(key)
+                    'Updating id {} with unloaded status'.format(key)
                 )
                 # Set to loaded
                 asset_info[asset_const.OBJECTS_LOADED] = False
@@ -504,7 +560,7 @@ class QtAssetManagerClientWidget(QtAssetManagerClient, QtWidgets.QFrame):
         '''
         Triggered when remove action is clicked on the ui.
         '''
-        selection = self.asset_manager_widget.asset_list.selection()
+        selection = self.asset_manager_widget.selection()
         if self.asset_manager_widget.check_selection(selection):
             if dialog.ModalDialog(
                 self.parent(),
@@ -545,10 +601,12 @@ class QtAssetManagerClientWidget(QtAssetManagerClient, QtWidgets.QFrame):
                         self.onAssetManagerMessage.emit(value, 'Remove asset')
                     continue
                 index = self._asset_list_model.getIndex(key)
+                if index is None and self.snapshot_assets:
+                    index = self.get_snapshot_list_model().getIndex(key)
                 if index is None:
                     continue
                 self.logger.debug(
-                    'Removing id {} with index {}'.format(key, index)
+                    'Removing asset with id {} at index {}'.format(key, index)
                 )
                 self._asset_list_model.removeRows(index)
         finally:
@@ -557,7 +615,7 @@ class QtAssetManagerClientWidget(QtAssetManagerClient, QtWidgets.QFrame):
     def mousePressEvent(self, event):
         '''(Override) Intercept mouse press event'''
         if event.button() != QtCore.Qt.RightButton:
-            self.asset_manager_widget.asset_list.clear_selection()
+            self.asset_manager_widget.clear_selection()
         return super(QtAssetManagerClientWidget, self).mousePressEvent(event)
 
     def _launch_publisher(self):
@@ -581,3 +639,8 @@ class QtAssetManagerClientWidget(QtAssetManagerClient, QtWidgets.QFrame):
                 self.asset_manager_widget.client_notification_subscribe_id
             )
             self.asset_manager_widget.client_notification_subscribe_id = None
+
+
+class AssetManagerTabWidget(tab.TabWidget):
+    def __init__(self, parent=None):
+        super(AssetManagerTabWidget, self).__init__(parent=parent)

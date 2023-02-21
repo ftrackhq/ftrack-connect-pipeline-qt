@@ -34,8 +34,18 @@ class QtPublisherClient(PublisherClient):
     ui_types = [core_constants.UI_TYPE, qt_constants.UI_TYPE]
 
     def __init__(self, event_manager):
+        self._run_callback_fn = None
         super(QtPublisherClient, self).__init__(event_manager)
         self.logger.debug('start qt publisher')
+
+    def set_run_callback_function(self, fn):
+        self._run_callback_fn = fn
+
+    def _run_callback(self, event):
+        '''Callback of the :meth:`~ftrack_connect_pipeline.client.run_plugin'''
+        super(QtPublisherClient, self)._run_callback(event)
+        if self._run_callback_fn:
+            self._run_callback_fn(event)
 
 
 class QtPublisherClientWidget(QtPublisherClient, QtWidgets.QFrame):
@@ -189,7 +199,7 @@ class QtPublisherClientWidget(QtPublisherClient, QtWidgets.QFrame):
         '''Triggered when client has set host connection'''
         self._clear_widget()
         if self.definition_filters:
-            self.definition_selector.definition_title_filters = (
+            self.definition_selector.definition_filters = (
                 self.definition_filters
             )
         if self.definition_extensions_filter:

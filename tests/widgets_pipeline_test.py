@@ -10,14 +10,17 @@ import sys
 # in standalone mode
 
 # Set the minimum required Environment variables.
-os.environ['FTRACK_EVENT_PLUGIN_PATH'] = os.pathsep.join(
-    [
-        '<PATH-TO-PIPELINE-DEFINITION>\\resource\\plugins\\qt',
-        '<PATH-TO-PIPELINE-DEFINITION>\\resource\\plugins\\common',
-        '<PATH-TO-PIPELINE-DEFINITION>\\resource\\definitions',
-    ]
+# os.environ['FTRACK_EVENT_PLUGIN_PATH'] = os.pathsep.join(
+#     [
+#         '<PATH-TO-PIPELINE-DEFINITION>\\resource\\plugins\\qt',
+#         '<PATH-TO-PIPELINE-DEFINITION>\\resource\\plugins\\common',
+#         '<PATH-TO-PIPELINE-DEFINITION>\\resource\\definitions',
+#     ]
+# )
+os.environ['FTRACK_EVENT_PLUGIN_PATH'] = (
+    '/Users/ftrack/work/ftrack/repos/ftrack-connect-pipeline-definition/resource/plugins:'
+    '/Users/ftrack/work/ftrack/repos/ftrack-connect-pipeline-definition/resource/definitions:'
 )
-
 
 # Init QApplication
 app = QtWidgets.QApplication(sys.argv)
@@ -29,7 +32,7 @@ event_manager = event.EventManager(
 )
 
 # Init host
-host.Host(event_manager)
+host_class = host.Host(event_manager)
 
 # Init Client
 from ftrack_connect_pipeline_qt.client import (
@@ -47,7 +50,7 @@ pub_client_connection = publish.QtPublisherClientWidget(event_manager)
 # Set the context
 context_entity = session.query("Task").first()
 
-pub_client_connection.context_selector.set_context_id(context_id)
+pub_client_connection.context_id = context_entity['id']
 # load_client_connection.context_selector.set_context_id(context_id))
 # am_client_connection.context_id(context_id)
 # lv_client_connection.context_id(context_id)
