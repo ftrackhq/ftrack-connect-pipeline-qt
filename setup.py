@@ -25,9 +25,6 @@ STYLE_PATH = os.path.join(RESOURCE_PATH, 'style')
 RESOURCE_TARGET_PATH = os.path.join(
     SOURCE_PATH, 'ftrack_connect_pipeline_qt', 'ui', 'resource.py'
 )
-BOOTSTRAP_PATH = os.path.join(RESOURCE_PATH, 'bootstrap')
-PLUGINS_PATH = os.path.join(RESOURCE_PATH, 'plugins')
-DEFINITIONS_PATH = os.path.join(RESOURCE_PATH, 'definitions')
 
 HOOK_PATH = os.path.join(ROOT_PATH, 'hook')
 
@@ -155,10 +152,8 @@ class BuildPlugin(setuptools.Command):
         excluded_file = ['style', 'style_light.css', 'style_dark.css']
         for _name in os.listdir(RESOURCE_PATH):
             if _name not in excluded_file:
-                if os.path.isdir:
+                if os.path.isdir(_name):
                     shutil.copytree(_name, os.path.join(STAGING_PATH, 'resource'))
-                else:
-                    shutil.copy(_name, os.path.join(STAGING_PATH, 'resource'))
 
         # Copy plugin files
         shutil.copytree(HOOK_PATH, os.path.join(STAGING_PATH, 'hook'))
