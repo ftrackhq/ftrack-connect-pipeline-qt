@@ -148,6 +148,9 @@ class BuildPlugin(setuptools.Command):
         # Clean staging path
         shutil.rmtree(STAGING_PATH, ignore_errors=True)
 
+        # Copy resource files
+        shutil.copytree(RESOURCE_PATH, os.path.join(STAGING_PATH, 'resource'))
+
         # Copy plugin files
         shutil.copytree(HOOK_PATH, os.path.join(STAGING_PATH, 'hook'))
         dependencies_path = os.path.join(STAGING_PATH, 'dependencies')
