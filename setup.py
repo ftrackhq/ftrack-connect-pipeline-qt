@@ -152,12 +152,13 @@ class BuildPlugin(setuptools.Command):
         shutil.rmtree(STAGING_PATH, ignore_errors=True)
 
         # Copy resource files except style
-        # bootstrap
-        shutil.copytree(BOOTSTRAP_PATH, os.path.join(STAGING_PATH, 'resource', 'bootstrap'))
-        # plugins
-        shutil.copytree(PLUGINS_PATH, os.path.join(STAGING_PATH, 'resource', 'plugins'))
-        # definitions
-        shutil.copytree(DEFINITIONS_PATH, os.path.join(STAGING_PATH, 'resource', 'definitions'))
+        excluded_file = ['style', 'style_light.css', 'style_dark.css']
+        for _name in os.listdir(RESOURCE_PATH):
+            if _name not in excluded_file:
+                if os.path.isdir:
+                    shutil.copytree(_name, os.path.join(STAGING_PATH, 'resource'))
+                else:
+                    shutil.copy(_name, os.path.join(STAGING_PATH, 'resource'))
 
         # Copy plugin files
         shutil.copytree(HOOK_PATH, os.path.join(STAGING_PATH, 'hook'))
