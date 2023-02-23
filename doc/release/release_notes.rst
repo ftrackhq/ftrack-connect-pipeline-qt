@@ -9,6 +9,10 @@ Release Notes
 
 .. release:: upcoming
 
+    .. change:: changed
+
+        Optimised Assembler/loader with optimised query projections
+
     .. change:: fix
 
         Align assembler UI, consolidated assembler widget module.
