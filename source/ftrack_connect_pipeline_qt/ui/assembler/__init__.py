@@ -349,24 +349,6 @@ class AssemblerBrowserWidget(AssemblerBaseWidget):
             )
             thread.start()
 
-    def _recursive_get_descendant_ids(self, context):
-        '''Build and return a list of all context ids beneath *context*'''
-        result = []
-        if context.entity_type != 'Task':
-            result.append(context['id'])
-        if 'children' in context:
-            self.session.populate(
-                context, 'children'
-            )  # Make sure we fetch fresh data
-            for child in context['children']:
-                if child.entity_type != "Task":
-                    for context_id in self._recursive_get_descendant_ids(
-                        child
-                    ):
-                        if not context_id in result:
-                            result.append(context_id)
-        return result
-
     def _fetch_versions_async(self, context):
         '''(Background thread) Search ftrack for versions beneath the given *context_id*'''
         try:
