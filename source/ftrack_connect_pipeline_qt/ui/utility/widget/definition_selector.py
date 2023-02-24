@@ -288,8 +288,6 @@ class OpenerDefinitionSelector(DefinitionSelectorBase):
                                 version_has_openable_component = True
                                 break
 
-                        if version_has_openable_component:
-                            break
                     if version_has_openable_component:
                         self.logger.info(
                             'Version {} can be opened'.format(
