@@ -265,29 +265,29 @@ class OpenerDefinitionSelector(DefinitionSelectorBase):
                     )
                     continue
 
+                component_names_filter_low = list(map(str.lower, component_names_filter))
                 # Check if any versions at all, find out asset type name from package
                 asset_type_short = item['asset_type']
                 for asset_version in self._host_connection.session.query(
-                    'select components.name,components.file_type,date,version,asset.id,asset.name,task.context_type,task.id,task.name from AssetVersion where '
-                    'task.id={} and asset.type.short="{}" order by date descending'.format(
-                        self._host_connection.context_id,
-                        asset_type_short,
-                    )
+                        'select components.name,components.file_type,date,version,asset.id,asset.name,task.context_type,task.id,task.name from AssetVersion where '
+                        'task.id={} and asset.type.short="{}" order by date descending'.format(
+                            self._host_connection.context_id,
+                            asset_type_short,
+                        )
                 ):
                     version_has_openable_component = False
                     for component in asset_version['components']:
-                        for component_name in component_names_filter:
+                        if (
+                                component['name'].lower() in component_names_filter_low
+                        ):
+                            # Check if file extension matches
                             if (
-                                component['name'].lower()
-                                == component_name.lower()
-                            ):
-                                # Check if file extension matches
-                                if (
                                     component['file_type']
                                     in self._definition_extensions_filter
-                                ):
-                                    version_has_openable_component = True
-                                    break
+                            ):
+                                version_has_openable_component = True
+                                break
+
                         if version_has_openable_component:
                             break
                     if version_has_openable_component:
@@ -297,8 +297,8 @@ class OpenerDefinitionSelector(DefinitionSelectorBase):
                             )
                         )
                         if (
-                            latest_version is None
-                            or latest_version['date'] < asset_version['date']
+                                latest_version is None
+                                or latest_version['date'] < asset_version['date']
                         ):
                             latest_version = asset_version
                             index_latest_version = index
