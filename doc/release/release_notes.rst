@@ -11,6 +11,10 @@ Release Notes
 
     .. change:: changed
 
+        Use Poetry as build infrastructure instead of setuptools
+
+    .. change:: changed
+
         Optimised Assembler/loader with optimised query projections
 
     .. change:: fix
