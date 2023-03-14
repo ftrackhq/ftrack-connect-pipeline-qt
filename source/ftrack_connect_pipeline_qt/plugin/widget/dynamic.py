@@ -236,7 +236,7 @@ class DynamicWidget(BaseOptionsWidget):
 
         self.layout().addWidget(self.option_group)
 
-        for key, value in list(sorted(self.options.items())):
+        for key, value in list(self.options.items()):
             # Make sure it is not a hidden/internal framework option, we do not
             # want to expose these within the UI
             if key.find('_') == 0:
