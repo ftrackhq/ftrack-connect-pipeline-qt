@@ -38,6 +38,7 @@ class DynamicWidget(BaseOptionsWidget):
             list: self._build_list_widget,
             bool: self._build_bool_widget,
         }
+        self._widgets = {}  # Store created widgets
         super(DynamicWidget, self).__init__(
             parent=parent,
             session=session,
@@ -64,6 +65,11 @@ class DynamicWidget(BaseOptionsWidget):
         else:
             # Add widget directly
             self.option_layout.addWidget(widget)
+        self._widgets[name] = widget
+
+    def _get_widget(self, name):
+        '''Return dyncamic widget by *name*, enabling access to the widget by child'''
+        return self._widgets.get(name)
 
     def _build_str_widget(self, key, value):
         '''build a string widget out of options *key* and *value*'''
@@ -132,7 +138,7 @@ class DynamicWidget(BaseOptionsWidget):
 
     def update(self, options, ignore=None):
         '''Combine supplied options from definition, with UI defined options. Ignore the options keys
-        provided in *ignore* list, managed by the the child options widget.'''
+        provided in *ignore* list, managed by the child options widget.'''
         # Preprocess, the list values supplied in definitions must override UI defined options
         for key, value in self.options.items():
             if key in (ignore or []):
@@ -157,7 +163,6 @@ class DynamicWidget(BaseOptionsWidget):
                                 'value': str(list_value),
                             }
                         )
-                options[key] = new_value
             else:
                 # Is it defined as a combobox?
                 if key in options and isinstance(options[key], list):
@@ -165,6 +170,8 @@ class DynamicWidget(BaseOptionsWidget):
                     # Make it present as a combobox and not a string input
                     found = False
                     for item in options[key]:
+                        if isinstance(item, str):
+                            item = {'label': item, 'value': item}
                         new_value.append(item)
                         if item['value'] == value:
                             found = True
@@ -220,7 +227,7 @@ class DynamicWidget(BaseOptionsWidget):
     def build(self):
         '''build function widgets based on the type of the value of every
         element in the options dictionary'''
-        # Create a options group for widgets with a well defined title instead of the default
+        # Create an options group for widgets with a well defined title instead of the default
         self.option_group = group_box.GroupBox(self.get_options_group_name())
         self.option_group.setToolTip(self.description)
 
@@ -229,7 +236,7 @@ class DynamicWidget(BaseOptionsWidget):
 
         self.layout().addWidget(self.option_group)
 
-        for key, value in list(sorted(self.options.items())):
+        for key, value in list(self.options.items()):
             # Make sure it is not a hidden/internal framework option, we do not
             # want to expose these within the UI
             if key.find('_') == 0:
