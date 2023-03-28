@@ -15,16 +15,17 @@ class NodeComboBox(QtWidgets.QWidget):
         '''
         super(NodeComboBox, self).__init__(parent=parent)
         self.setLayout(QtWidgets.QVBoxLayout())
-
-        h_layout = QtWidgets.QHBoxLayout()
-        h_layout.setContentsMargins(
+        self.layout().setContentsMargins(
             15, 0, 0, 0
         )
+        self.layout().setSpacing(0)
+
+        h_layout = QtWidgets.QHBoxLayout()
         h_layout.setSpacing(0)
 
         self._combo_box = QtWidgets.QComboBox()
 
-        h_layout.addWidget(self._combo_box, 20)
+        h_layout.addWidget(self._combo_box)
 
         self._refresh_button = CircularButton('sync')
 
