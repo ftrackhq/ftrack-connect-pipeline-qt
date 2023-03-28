@@ -6,12 +6,13 @@ from ftrack_connect_pipeline_qt.ui.utility.widget.circular_button import (
 
 
 class NodeComboBox(QtWidgets.QWidget):
+    ''' ComboBox widget '''
     refresh_clicked = QtCore.Signal()
     text_changed = QtCore.Signal(object)
 
     def __init__(self, parent=None):
         '''
-        Initialize base accordion widget
+        Initialize combo box widget
         '''
         super(NodeComboBox, self).__init__(parent=parent)
         self.setLayout(QtWidgets.QVBoxLayout())
@@ -39,6 +40,8 @@ class NodeComboBox(QtWidgets.QWidget):
         self._combo_box.currentTextChanged.connect(self._current_text_changed)
 
     def add_items(self, node_names, default_name=None):
+        ''' Add given *node_names in the combo box, if *default_name* make
+        pre-select the item. If no items, disable widget.'''
         if node_names:
             self._combo_box.setDisabled(False)
         else:
@@ -50,19 +53,24 @@ class NodeComboBox(QtWidgets.QWidget):
                 self._combo_box.setCurrentIndex(index)
 
     def show_warning(self, text):
+        ''' Show warning text under combo box'''
         self._warning.setVisible(True)
         self._warning.setText(
             '<html><i style="color:red">{}</i></html>'.format(text)
         )
 
     def hide_warning(self):
+        ''' Hide warning widget'''
         self._warning.setVisible(False)
 
     def _refresh(self):
+        ''' Refresh button signal'''
         self.refresh_clicked.emit()
 
     def _current_text_changed(self, text):
+        ''' Selected item in the combo box changed '''
         self.text_changed.emit(text)
 
     def get_text(self):
+        '''Get text of the current item of the combo box'''
         return self._combo_box.currentText()

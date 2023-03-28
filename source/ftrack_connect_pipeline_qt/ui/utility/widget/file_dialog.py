@@ -6,16 +6,17 @@ from ftrack_connect_pipeline_qt.ui.utility.widget import dialog
 
 
 class FileDialog(QtWidgets.QFileDialog):
+    ''' File dialog Widget'''
     caption = 'Choose file'
 
     @property
     def path(self):
-        '''Return the media path from options'''
+        '''Return selected path in the file dialog'''
         return self._path
 
     def __init__(self, start_dir, dialog_filter, parent=None):
         '''
-        Initialize base accordion widget
+        Initialize File dialog
         '''
         super(FileDialog, self).__init__(parent=parent)
         self._path = None
@@ -32,6 +33,7 @@ class FileDialog(QtWidgets.QFileDialog):
         self.proces_path(file_path)
 
     def proces_path(self, file_path):
+        '''Process returned path of the file dialog'''
         self._path = os.path.normpath(file_path)
 
 
@@ -40,13 +42,14 @@ class ImageSequenceFileDialog(FileDialog):
 
     def __init__(self, start_dir, dialog_filter, parent=None):
         '''
-        Initialize base accordion widget
+        Initialize File dialog
         '''
         super(ImageSequenceFileDialog, self).__init__(
             start_dir=start_dir, dialog_filter=dialog_filter, parent=parent
         )
 
     def proces_path(self, file_path):
+        '''Process returned path of the file dialog'''
         file_path = os.path.normpath(file_path)
 
         image_sequence_path = core_utils.find_image_sequence(file_path)
