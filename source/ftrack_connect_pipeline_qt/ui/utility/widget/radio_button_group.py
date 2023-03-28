@@ -18,6 +18,7 @@ class RadioButtonGroup(QtWidgets.QWidget):
 
     def set_default(self, name):
         self.registry[name]["widget"].setChecked(True)
+        self._update_selected_option(self.registry[name]["widget"])
 
     def add_button(self, name, label, inner_widget):
         new_button = QtWidgets.QRadioButton(label)
@@ -42,3 +43,9 @@ class RadioButtonGroup(QtWidgets.QWidget):
                 self.option_changed.emit(
                     name, values['widget'], values["inner_widget"]
                 )
+
+    def get_checked_button(self):
+        button = self.bg.checkedButton()
+        for name, values in self.registry.items():
+            if button in values["widget"]:
+                return name, values['widget'], values["inner_widget"]

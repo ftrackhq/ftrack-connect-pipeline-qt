@@ -1,8 +1,8 @@
-from Qt import QtWidgets
+from Qt import QtWidgets, QtCore
 
 
 class BrowseWidget(QtWidgets.QWidget):
-
+    browse_button_clicked = QtCore.Signal()
     def __init__(self, parent=None):
         '''
         Initialize base accordion widget
@@ -24,3 +24,16 @@ class BrowseWidget(QtWidgets.QWidget):
 
         self.layout().addWidget(self._browse_btn)
 
+        self._browse_btn.clicked.connect(self._browse_button_clicked)
+
+    def get_path(self):
+        return self._path_le.text()
+
+    def set_path(self, path_text):
+        self._path_le.setText(path_text)
+
+    def set_tool_tip(self, tooltip_text):
+        self._path_le.setToolTip(tooltip_text)
+
+    def _browse_button_clicked(self):
+        self.browse_button_clicked.emit()
