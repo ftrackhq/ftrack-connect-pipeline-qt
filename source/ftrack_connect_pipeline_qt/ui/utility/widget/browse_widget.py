@@ -3,6 +3,7 @@ from Qt import QtWidgets, QtCore
 
 class BrowseWidget(QtWidgets.QWidget):
     browse_button_clicked = QtCore.Signal()
+
     def __init__(self, parent=None):
         '''
         Initialize base accordion widget
@@ -10,9 +11,7 @@ class BrowseWidget(QtWidgets.QWidget):
         super(BrowseWidget, self).__init__(parent=parent)
 
         self.setLayout(QtWidgets.QHBoxLayout())
-        self.layout().setContentsMargins(
-            15, 0, 0, 0
-        )
+        self.layout().setContentsMargins(15, 0, 0, 0)
         self.layout().setSpacing(0)
 
         self._path_le = QtWidgets.QLineEdit()

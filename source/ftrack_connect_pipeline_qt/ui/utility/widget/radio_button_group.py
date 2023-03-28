@@ -29,7 +29,7 @@ class RadioButtonGroup(QtWidgets.QWidget):
         self.layout().addWidget(inner_widget)
         self.registry[name] = {
             "widget": new_button,
-            "inner_widget": inner_widget
+            "inner_widget": inner_widget,
         }
         inner_widget.setVisible(False)
         if len(self.registry.keys()) == 1:

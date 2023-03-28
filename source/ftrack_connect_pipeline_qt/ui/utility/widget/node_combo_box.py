@@ -15,9 +15,7 @@ class NodeComboBox(QtWidgets.QWidget):
         '''
         super(NodeComboBox, self).__init__(parent=parent)
         self.setLayout(QtWidgets.QVBoxLayout())
-        self.layout().setContentsMargins(
-            15, 0, 0, 0
-        )
+        self.layout().setContentsMargins(15, 0, 0, 0)
         self.layout().setSpacing(0)
 
         h_layout = QtWidgets.QHBoxLayout()
@@ -46,7 +44,7 @@ class NodeComboBox(QtWidgets.QWidget):
         else:
             self._combo_box.setDisabled(True)
         self._combo_box.clear()
-        for (index, node_name) in enumerate(node_names):
+        for index, node_name in enumerate(node_names):
             self._combo_box.addItem(node_name)
             if node_name == default_name:
                 self._combo_box.setCurrentIndex(index)

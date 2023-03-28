@@ -6,7 +6,6 @@ from ftrack_connect_pipeline_qt.ui.utility.widget import dialog
 
 
 class FileDialog(QtWidgets.QFileDialog):
-
     caption = 'Choose file'
 
     @property
@@ -24,9 +23,7 @@ class FileDialog(QtWidgets.QFileDialog):
             file_path,
             unused_selected_filter,
         ) = self.getOpenFileName(
-            caption=self.caption,
-            dir=start_dir,
-            filter=dialog_filter
+            caption=self.caption, dir=start_dir, filter=dialog_filter
         )
 
         if not file_path:
@@ -59,7 +56,7 @@ class ImageSequenceFileDialog(FileDialog):
                 None,
                 title='Locate image sequence',
                 message='An image sequence on the form "prefix.NNNN.ext" were not '
-                        'found at {}!'.format(file_path),
+                'found at {}!'.format(file_path),
             )
         self._path = os.path.normpath(image_sequence_path)
 
