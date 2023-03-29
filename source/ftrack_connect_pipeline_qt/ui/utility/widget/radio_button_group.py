@@ -2,7 +2,8 @@ from Qt import QtWidgets, QtCore
 
 
 class RadioButtonGroup(QtWidgets.QWidget):
-    ''' Radio Button Group Widget'''
+    ''' Radio Button Group Widget with a registry of radiobuttons with name and
+    innerwidget'''
     option_changed = QtCore.Signal(object, object, object)
 
     def __init__(self, parent=None):
@@ -11,10 +12,18 @@ class RadioButtonGroup(QtWidgets.QWidget):
         '''
         super(RadioButtonGroup, self).__init__(parent=parent)
 
-        self.setLayout(QtWidgets.QVBoxLayout())
-        self.registry = {}
 
+        self.registry = {}
+        self.build()
+        self.post_build()
+
+    def build(self):
+        '''Build widgets'''
+        self.setLayout(QtWidgets.QVBoxLayout())
         self.bg = QtWidgets.QButtonGroup(self)
+
+    def post_build(self):
+        '''Connect widget signals'''
         self.bg.buttonClicked.connect(self._update_selected_option)
 
     def set_default(self, name):
@@ -54,5 +63,5 @@ class RadioButtonGroup(QtWidgets.QWidget):
         '''Returns current selected radio button'''
         button = self.bg.checkedButton()
         for name, values in self.registry.items():
-            if button in values["widget"]:
+            if button == values["widget"]:
                 return name, values['widget'], values["inner_widget"]

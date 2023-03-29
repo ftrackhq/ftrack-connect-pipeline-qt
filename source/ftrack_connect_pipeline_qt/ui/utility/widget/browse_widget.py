@@ -2,7 +2,7 @@ from Qt import QtWidgets, QtCore
 
 
 class BrowseWidget(QtWidgets.QWidget):
-    ''' Browse Widget'''
+    ''' Browse Widget is a line edit with a browse button'''
     browse_button_clicked = QtCore.Signal()
 
     def __init__(self, parent=None):
@@ -11,6 +11,11 @@ class BrowseWidget(QtWidgets.QWidget):
         '''
         super(BrowseWidget, self).__init__(parent=parent)
 
+        self.build()
+        self.post_build()
+
+    def build(self):
+        '''Build widgets'''
         self.setLayout(QtWidgets.QHBoxLayout())
         self.layout().setContentsMargins(15, 0, 0, 0)
         self.layout().setSpacing(0)
@@ -24,6 +29,8 @@ class BrowseWidget(QtWidgets.QWidget):
 
         self.layout().addWidget(self._browse_btn)
 
+    def post_build(self):
+        '''Connect widget signals'''
         self._browse_btn.clicked.connect(self._browse_button_clicked)
 
     def get_path(self):

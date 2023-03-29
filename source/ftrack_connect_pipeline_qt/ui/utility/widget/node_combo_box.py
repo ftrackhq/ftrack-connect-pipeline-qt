@@ -6,7 +6,7 @@ from ftrack_connect_pipeline_qt.ui.utility.widget.circular_button import (
 
 
 class NodeComboBox(QtWidgets.QWidget):
-    ''' ComboBox widget '''
+    ''' ComboBox widget with warning label for feedback and a refresh button'''
     refresh_clicked = QtCore.Signal()
     text_changed = QtCore.Signal(object)
 
@@ -15,12 +15,17 @@ class NodeComboBox(QtWidgets.QWidget):
         Initialize combo box widget
         '''
         super(NodeComboBox, self).__init__(parent=parent)
+        self.build()
+        self.post_build()
+
+    def build(self):
+        '''Build widgets'''
         self.setLayout(QtWidgets.QVBoxLayout())
         self.layout().setContentsMargins(15, 0, 0, 0)
         self.layout().setSpacing(0)
 
         h_layout = QtWidgets.QHBoxLayout()
-        h_layout.setSpacing(0)
+        h_layout.setSpacing(10)
 
         self._combo_box = QtWidgets.QComboBox()
 
@@ -36,6 +41,8 @@ class NodeComboBox(QtWidgets.QWidget):
         self._warning.setVisible(False)
         self.layout().addWidget(self._warning)
 
+    def post_build(self):
+        '''Connect widget signals'''
         self._refresh_button.clicked.connect(self._refresh)
         self._combo_box.currentTextChanged.connect(self._current_text_changed)
 
