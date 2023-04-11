@@ -501,10 +501,7 @@ class AssetManagerListWidget(AssetListWidget):
                 asset_widget, 'first', 'true' if row == 0 else 'false'
             )
             asset_widget.set_asset_info(asset_info)
-            self.layout().addWidget(asset_widget)
-            asset_widget.clicked.connect(
-                partial(self.asset_clicked, asset_widget)
-            )
+            self.add_widget(asset_widget)
             asset_widget.changeAssetVersion.connect(
                 self._on_change_asset_version
             )

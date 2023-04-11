@@ -1,6 +1,7 @@
 # :coding: utf-8
 # :copyright: Copyright (c) 2014-2020 ftrack
 import platform
+from functools import partial
 
 from Qt import QtWidgets, QtCore
 import shiboken2
@@ -106,6 +107,9 @@ class AssetListWidget(QtWidgets.QWidget):
     selectionUpdated = QtCore.Signal(
         object
     )  # Emitted when selection has been updated
+    checkedUpdated = QtCore.Signal(
+        object
+    )  # Emitted when checked state has been updated
     refreshed = QtCore.Signal()  # Should be emitted when list has been rebuilt
 
     @property
@@ -155,6 +159,21 @@ class AssetListWidget(QtWidgets.QWidget):
         result = []
         for widget in self.assets:
             if widget.selected:
+                if as_widgets:
+                    result.append(widget)
+                else:
+                    data = self.model.data(widget.index)
+                    if data is None:
+                        # Data has changed
+                        return None
+                    result.append(data)
+        return result
+
+    def checked(self, as_widgets=False):
+        '''Return list of checked model data or asset widgets if *as_widgets* is True'''
+        result = []
+        for widget in self.assets:
+            if widget.checked:
                 if as_widgets:
                     result.append(widget)
                 else:
@@ -225,6 +244,19 @@ class AssetListWidget(QtWidgets.QWidget):
         for widget in self.assets:
             if widget.index.row() == index.row():
                 return widget
+
+    def add_widget(self, widget):
+        self.layout().addWidget(widget)
+        self.setup_widget(widget)
+
+    def setup_widget(self, widget):
+        '''Initialize accordion asset widget, ignore other types of widget in list'''
+        if isinstance(widget, AccordionBaseWidget):
+            widget.clicked.connect(partial(self.asset_clicked, widget))
+            widget.checkedStateChanged.connect(self.asset_checked)
+
+    def asset_checked(self, asset_widget):
+        self.checkedUpdated.emit(self.checked())
 
     def mousePressEvent(self, event):
         '''Consume this event, so parent client does not de-select all'''

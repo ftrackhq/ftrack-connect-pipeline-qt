@@ -8,7 +8,7 @@ from ftrack_connect_pipeline import constants as core_constants
 from ftrack_connect_pipeline.client import constants as client_constants
 from ftrack_connect_pipeline.client.publisher import PublisherClient
 
-from ftrack_connect_pipeline_qt.utils import get_theme, set_theme
+from ftrack_connect_pipeline_qt.utils import get_theme, set_theme, clear_layout
 from ftrack_connect_pipeline_qt import constants as qt_constants
 from ftrack_connect_pipeline_qt.ui.factory.publisher import (
     PublisherWidgetFactory,
@@ -45,6 +45,22 @@ class QtPublisherClientWidget(QtPublisherClient, QtWidgets.QFrame):
 
     contextChanged = QtCore.Signal(object)  # Context has changed
 
+    @property
+    def widget_factory(self):
+        return self._widget_factory
+
+    @widget_factory.setter
+    def widget_factory(self, value):
+        self._widget_factory = value
+        clear_layout(self.header.content_container.layout())
+        self.header.content_container.layout().addWidget(
+            self.progress_widget.widget
+        )
+
+    @property
+    def progress_widget(self):
+        return self.widget_factory.progress_widget
+
     def __init__(self, event_manager, parent=None):
         QtWidgets.QFrame.__init__(self, parent=parent)
         QtPublisherClient.__init__(self, event_manager)
@@ -77,9 +93,7 @@ class QtPublisherClientWidget(QtPublisherClient, QtWidgets.QFrame):
         if location_message:
             self.logger.warning(location_message)
 
-        self.widget_factory = PublisherWidgetFactory(
-            self.event_manager, self.ui_types
-        )
+        self._widget_factory = None
         self.is_valid_asset_name = False
         self.open_assembler_button = None
         self.scroll = None  # Main content scroll pane
@@ -112,9 +126,8 @@ class QtPublisherClientWidget(QtPublisherClient, QtWidgets.QFrame):
         '''Build widgets and parent them.'''
         self.header = header.Header(self.session)
         self.layout().addWidget(self.header)
-        self.progress_widget = self.widget_factory.progress_widget
-        self.header.content_container.layout().addWidget(
-            self.progress_widget.widget
+        self.widget_factory = PublisherWidgetFactory(
+            self.event_manager, self.ui_types
         )
 
         self.host_selector = host_selector.HostSelector(self)
@@ -284,19 +297,17 @@ class QtPublisherClientWidget(QtPublisherClient, QtWidgets.QFrame):
         serialized_data = self.widget_factory.to_json_object()
         if not self.is_valid_asset_name:
             msg = "Can't publish without a valid asset name"
-            self.widget_factory.progress_widget.set_status(
-                core_constants.ERROR_STATUS, msg
-            )
+            self.progress_widget.set_status(core_constants.ERROR_STATUS, msg)
             self.logger.error(msg)
             return False
         engine_type = serialized_data['_config']['engine_type']
         self.widget_factory.listen_widget_updates()
         try:
-            self.widget_factory.progress_widget.show_widget()
-            self.widget_factory.progress_widget.reset_statuses()
+            self.progress_widget.show_widget()
+            self.progress_widget.reset_statuses()
             self.run_definition(serialized_data, engine_type)
             if not self.widget_factory.has_error:
-                self.widget_factory.progress_widget.set_status(
+                self.progress_widget.set_status(
                     core_constants.SUCCESS_STATUS,
                     'Successfully published {}!'.format(
                         self.definition['name'][
@@ -309,7 +320,7 @@ class QtPublisherClientWidget(QtPublisherClient, QtWidgets.QFrame):
 
     def refresh(self):
         '''Called upon definition selector refresh button click.'''
-        self.widget_factory.progress_widget.set_status_widget_visibility(False)
+        self.progress_widget.set_status_widget_visibility(False)
 
     def _launch_context_selector(self):
         '''Close client (if not docked) and open entity browser.'''
