@@ -7,6 +7,14 @@
 Release Notes
 *************
 
+.. release:: upcoming
+
+    .. change:: changed
+        :tags: publisher
+
+        Enable publisher to support switching progress widget (Unreal shot publish)
+
+
 .. release:: 1.3.0
     .. date:: 2023-04-05
 

@@ -246,16 +246,18 @@ class AssetListWidget(QtWidgets.QWidget):
                 return widget
 
     def add_widget(self, widget):
+        '''Add *widget* to the list'''
         self.layout().addWidget(widget)
         self.setup_widget(widget)
 
     def setup_widget(self, widget):
-        '''Initialize accordion asset widget, ignore other types of widget in list'''
+        '''Set up asset *widget* signals'''
         if isinstance(widget, AccordionBaseWidget):
             widget.clicked.connect(partial(self.asset_clicked, widget))
             widget.checkedStateChanged.connect(self.asset_checked)
 
     def asset_checked(self, asset_widget):
+        '''An asset were checked in list, emit signal to enable propagation.'''
         self.checkedUpdated.emit(self.checked())
 
     def mousePressEvent(self, event):

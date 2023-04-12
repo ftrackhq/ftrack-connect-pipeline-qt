@@ -47,10 +47,12 @@ class QtPublisherClientWidget(QtPublisherClient, QtWidgets.QFrame):
 
     @property
     def widget_factory(self):
+        '''Return the widget factory'''
         return self._widget_factory
 
     @widget_factory.setter
     def widget_factory(self, value):
+        '''Set/change the current widget factory from *value*, update main progress widget in header.'''
         self._widget_factory = value
         clear_layout(self.header.content_container.layout())
         self.header.content_container.layout().addWidget(
@@ -59,6 +61,7 @@ class QtPublisherClientWidget(QtPublisherClient, QtWidgets.QFrame):
 
     @property
     def progress_widget(self):
+        '''Return the factory progress widget'''
         return self.widget_factory.progress_widget
 
     def __init__(self, event_manager, parent=None):

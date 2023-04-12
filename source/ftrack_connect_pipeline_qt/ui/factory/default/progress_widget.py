@@ -292,7 +292,9 @@ class ProgressWidgetObject(BaseUIWidgetObject):
         batch_id,
         batch_ident=None,
     ):
-        '''Update the status of the progress of a step/component'''
+        '''Update the status of the progress, given by *status*, *status_message*, *result*
+        of a step/component identified by *step_type*, *step_name*, *batch_id*. Use optional *batch_ident*
+        as label instead of batch_id if provided.'''
         id_name = "{}.{}.{}".format(batch_id or '-', step_type, step_name)
         if id_name in self._step_widgets:
             self._step_widgets[id_name].update_status(
