@@ -18,12 +18,23 @@ from ftrack_connect_pipeline_qt.ui.factory import (
 class AssemblerWidgetFactory(OpenerAssemblerWidgetFactoryBase):
     '''Augmented widget factory for assembler(loader) client'''
 
+    @property
+    def definition(self):
+        '''Return the definition'''
+        return self._definition
+
+    @definition.setter
+    def definition(self, value):
+        '''Set the definition'''
+        self._definition = value
+
     def __init__(self, event_manager, ui_types, parent=None):
         super(AssemblerWidgetFactory, self).__init__(
             event_manager,
             ui_types,
             parent=parent,
         )
+        self._definition = None
 
     @staticmethod
     def client_type():
@@ -36,9 +47,6 @@ class AssemblerWidgetFactory(OpenerAssemblerWidgetFactoryBase):
         return OpenerAssemblerWidgetFactoryBase.create_progress_widget(
             AssemblerWidgetFactory.client_type(), parent=parent
         )
-
-    def set_definition(self, definition):
-        self.definition = definition
 
     def build(self, main_widget):
         '''(Override)'''

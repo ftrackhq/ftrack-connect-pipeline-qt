@@ -378,7 +378,7 @@ class QtAssemblerClientWidget(QtLoaderClient, dialog.Dialog):
     # Run
 
     def setup_widget_factory(self, widget_factory, definition, context_id):
-        widget_factory.set_definition(definition)
+        widget_factory.definition = definition
         widget_factory.set_context(context_id, definition['asset_type'])
         widget_factory.host_connection = self._host_connection
         widget_factory.set_definition_type(definition['type'])
