@@ -742,7 +742,7 @@ class ComponentBaseWidget(AccordionBaseWidget):
         '''Serialize definition and store'''
         updated_definition = self._widget_factory.to_json_object()
 
-        self._widget_factory.set_definition(updated_definition)
+        self._widget_factory.definition = updated_definition
         # Transfer back load mode
         self._set_default_mode()
         # Clear out overlay, not needed anymore

@@ -702,6 +702,7 @@ class WidgetFactoryBase(QtWidgets.QWidget):
         '''Unsubscribe from :const:`~ftrack_connnect_pipeline.constants.PIPELINE_CLIENT_NOTIFICATION`'''
         if self._subscriber_id:
             self.session.event_hub.unsubscribe(self._subscriber_id)
+            self._subscriber_id = None
 
     def _on_widget_asset_changed(self, asset_name, asset_id, is_valid):
         '''Callback function called when asset has been modified on the widget'''

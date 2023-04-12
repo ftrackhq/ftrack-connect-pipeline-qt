@@ -600,10 +600,7 @@ class DependenciesListWidget(AssemblerListBaseWidget):
             component_widget.set_component_and_definitions(
                 component, definitions
             )
-            self.layout().addWidget(component_widget)
-            component_widget.clicked.connect(
-                partial(self.asset_clicked, component_widget)
-            )
+            self.add_widget(component_widget)
 
         self.layout().addWidget(QtWidgets.QLabel(), 1000)
         self.refreshed.emit()

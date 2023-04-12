@@ -283,9 +283,18 @@ class ProgressWidgetObject(BaseUIWidgetObject):
         self.widget.setVisible(visibility)
 
     def update_step_status(
-        self, step_type, step_name, status, status_message, results, batch_id
+        self,
+        step_type,
+        step_name,
+        status,
+        status_message,
+        results,
+        batch_id,
+        batch_ident=None,
     ):
-        '''Update the status of the progress of a step/component'''
+        '''Update the status of the progress, given by *status*, *status_message*, *result*
+        of a step/component identified by *step_type*, *step_name*, *batch_id*. Use optional *batch_ident*
+        as label instead of batch_id if provided.'''
         id_name = "{}.{}.{}".format(batch_id or '-', step_type, step_name)
         if id_name in self._step_widgets:
             self._step_widgets[id_name].update_status(
@@ -293,7 +302,9 @@ class ProgressWidgetObject(BaseUIWidgetObject):
             )
             if status != self.widget.get_status():
                 main_status_message = '{}{}.{}: {}'.format(
-                    ('{}.'.format(batch_id)) if batch_id else '',
+                    '{}.'.format(batch_ident)
+                    if batch_ident
+                    else ('{}.'.format(batch_id) if batch_id else ''),
                     step_type,
                     step_name,
                     status_message,
