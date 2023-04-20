@@ -404,14 +404,12 @@ class AssetManagerWidget(AssetManagerBaseWidget):
         _update_widget function when the host returns and answer through the
         same topic'''
 
-        self.client_notification_subscribe_id = (
-            self.session.event_hub.subscribe(
-                'topic={} and data.pipeline.host_id={}'.format(
-                    core_constants.PIPELINE_CLIENT_NOTIFICATION,
-                    self.host_connection.id,
-                ),
-                self._update_widget,
-            )
+        self.client_notification_subscribe_id = self.event_manager.subscribe(
+            'topic={} and data.pipeline.host_id={}'.format(
+                core_constants.PIPELINE_CLIENT_NOTIFICATION,
+                self.host_connection.id,
+            ),
+            self._update_widget,
         )
 
     def _on_refresh(self):

@@ -689,7 +689,7 @@ class WidgetFactoryBase(QtWidgets.QWidget):
         answer through the same topic
         '''
 
-        self._subscriber_id = self.session.event_hub.subscribe(
+        self._subscriber_id = self._event_manager.subscribe(
             'topic={} and data.pipeline.host_id={}'.format(
                 core_constants.PIPELINE_CLIENT_PROGRESS_NOTIFICATION,
                 self.host_connection.id,

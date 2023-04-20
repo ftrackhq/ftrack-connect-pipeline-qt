@@ -5,4 +5,4 @@ class QEventManager(EventManager):
     '''QT wrapper for pipeline event manager'''
 
     def _wait(self):
-        pass
+        super(QEventManager, self)._wait()
